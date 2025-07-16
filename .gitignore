@@ -1,8 +1,5 @@
-# Ignora tutto
 *
 
-# Ma non ignorare le cartelle (necessario per permettere eccezioni dentro le cartelle)
 !*/
-
-# Tieni solo i file .ipynb
 !*.ipynb
+!*.csv
