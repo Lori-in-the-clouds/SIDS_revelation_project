@@ -5,4 +5,4 @@
 !*.csv
 !*.pt
 !*.json
-!baby_posture.v1i.coco/train/_annotations.coco.json
+!train/_annotations.coco.json
