@@ -233,15 +233,14 @@ def embedding_SUPREMO(prediction: Boxes):
     keypoints = {}
     for bbox, cls in zip(prediction.xywhn, prediction.cls):
         class_label = classes_fd[cls.item()]
-        match class_label:
-            case "EYE":
+        if class_label == "EYE":
                 if "eye1" in keypoints:
                     keypoints["eye2"] = (bbox[0], bbox[1])
                 else:
                     keypoints["eye1"] = (bbox[0], bbox[1])
-            case "MOUTH":
+        elif class_label == "MOUTH":
                 keypoints["mouth"] = (bbox[0], bbox[1])
-            case "NOSE":
+        elif class_label == "NOSE":
                 keypoints["nose"] = (bbox[0], bbox[1])
 
     presence_flags = [
