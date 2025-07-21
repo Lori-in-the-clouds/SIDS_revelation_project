@@ -5,4 +5,5 @@
 !*.csv
 !*.pt
 !*.json
+!*.py
 !train/_annotations.coco.json
