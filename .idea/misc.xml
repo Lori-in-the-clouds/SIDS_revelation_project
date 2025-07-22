@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="Python 3.9 (PyCharmMiscProject)" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="image_processing" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="yolov8_env" project-jdk-type="Python SDK" />
 </project>
