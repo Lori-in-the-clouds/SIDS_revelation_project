@@ -4,6 +4,7 @@
 !*.ipynb
 !*.csv
 !*.pt
+!*.npy
 !*.json
 !*.py
 !train/_annotations.coco.json
