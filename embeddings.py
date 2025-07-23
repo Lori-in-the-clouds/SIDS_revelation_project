@@ -152,7 +152,7 @@ class EmbeddingBuilder:
                 self.keypoints.append(kpt)
                 self.y.append(label)
 
-        print(f"FINISHED:\n-> {len(self.y)} image processed, keypoints and labels(y) extracted")
+        print(f"FINISHED: {len(self.y)} image processed, keypoints and labels(y) extracted")
         self.save_keypoints_and_y()
 
     def embedding_all_features(self):
@@ -205,7 +205,7 @@ class EmbeddingBuilder:
             )
             X.append(embedding)
 
-        print(f"FINISHED:\n-> {len(X)} embedding created")
+        print(f"FINISHED: {len(X)} embedding created")
         return (X, features)
 
 
