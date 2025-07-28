@@ -1,10 +1,10 @@
 *
 
 !*/
-!*.ipynb
-!*.csv
-!*.pt
-!*.npy
-!*.json
-!*.py
-!train/_annotations.coco.json
+!**/*.ipynb
+!**/*.csv
+!**/*.pt
+!**/*.npy
+!**/*.json
+!**/*.py
+!models/4.predictions_misclassification/**/*.jpg

@@ -74,7 +74,8 @@ class EmbeddingBuilder:
         self.classes_fd = self.model_fd.names
 
         # save model name
-        self.model_n = weights_path[0]
+        self.model_n = weights_path.split("/")[1][0]
+        self.predictions_folder = Path(f"models/{self.model_n}.predictions_facedetection")
 
         # select dataset to be processed
         self.dataset = Path(dataset_path)
@@ -165,6 +166,7 @@ class EmbeddingBuilder:
                 result = self.model_fd(img, conf=0.3, verbose=False)[0]
 
                 kpt = self.keypoints_extractor(result.boxes)
+                kpt["file_path"] = img.name
                 label = self.file_label[img.name]
 
                 self.keypoints.append(kpt)
@@ -177,7 +179,7 @@ class EmbeddingBuilder:
         # extract classes_mlp, dim_dataset, file_label dictionary
         self.extract_dataset_info()
 
-        output_dir = Path(f"models/{self.model_n}.predictions")
+        output_dir = self.predictions_folder
         output_dir.mkdir(exist_ok=True, parents=True)
 
         # extract keypoints from each file
@@ -187,6 +189,7 @@ class EmbeddingBuilder:
                 result = self.model_fd(img_path, conf=0.3, verbose=False)[0]
 
                 kpt = self.keypoints_extractor(result.boxes)
+                kpt["file_path"] = img_path.name
                 label = self.file_label[img_path.name]
 
                 self.keypoints.append(kpt)
@@ -265,6 +268,7 @@ class EmbeddingBuilder:
                         "x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm", "x_mouth_norm", "y_mouth_norm",
                         "eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
                         "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
+            image_paths = []
 
             for kpt, cls in zip(self.keypoints, self.y):
                 self.progress_debug(X)
@@ -323,6 +327,7 @@ class EmbeddingBuilder:
                         [eye_distance, eye_distance_norm, face_vertical_length, face_vertical_length_norm, face_angle_vertical, face_angle_horizontal, symmetry_diff, head_ration]
                 )
                 X.append(embedding)
+                image_paths.append(kpt["file_path"])
 
             print(f"FINISHED: {len(X)} embedding created")
-            return (X, features)
+            return image_paths, X, features
