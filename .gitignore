@@ -8,3 +8,4 @@
 !**/*.json
 !**/*.py
 !models/4.predictions_misclassification/**/*.jpg
+*.mp4

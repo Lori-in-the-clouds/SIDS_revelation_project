@@ -45,7 +45,7 @@ def move_to_project_folder(weights_path: str):
     possible_paths = [
         Path().resolve(),
         Path("/home/terra/Documents/AI_engineering/SIDS-project/python_project/SIDS_revelation_project"),
-        Path(" ")  # percorso di Lore
+        Path("/Users/lorenzodimaio/Download/SIDS_revelation_project")  # percorso di Lore
     ]
 
     for path in possible_paths:
@@ -207,6 +207,7 @@ class EmbeddingBuilder:
         print(f"FINISHED: {len(self.y)} image processed, keypoints and labels(y) extracted")
         self.save_keypoints_and_y()
 
+
     def embedding_all_features(self):
         X = []
         features = ["flag_eye1","flag_eye2", "flag_nose", "flag_mouth", "x_eye1","y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth", "eye_distance", "face_vertical_length", "face_angle_vertical", "face_angle_horizontal", "symmetry_diff"]
@@ -259,6 +260,7 @@ class EmbeddingBuilder:
 
         print(f"FINISHED: {len(X)} embedding created")
         return (X, features)
+
 
 
     def embedding_all_features_norm(self):
@@ -327,7 +329,13 @@ class EmbeddingBuilder:
                         [eye_distance, eye_distance_norm, face_vertical_length, face_vertical_length_norm, face_angle_vertical, face_angle_horizontal, symmetry_diff, head_ration]
                 )
                 X.append(embedding)
-                image_paths.append(kpt["file_path"])
+
+                #image_paths.append(kpt["file_path"]) #modified
+
+                if "file_path" in kpt:
+                    image_paths.append(kpt["file_path"])
+                else:
+                    image_paths.append("unknown")
 
             print(f"FINISHED: {len(X)} embedding created")
             return image_paths, X, features
