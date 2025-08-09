@@ -113,8 +113,12 @@ class EmbeddingBuilder:
 
             for cls in dataset["categories"]:
                 classes_mlp[cls["name"]] = cls["id"]
-            del classes_mlp["baby"]
-            del classes_mlp["crib"]
+
+            if "baby" in classes_mlp:           #MODIFICATA DA LORI
+                del classes_mlp["baby"]
+
+            if "crib" in classes_mlp:
+                del classes_mlp["crib"]
 
         for file, img_id in file_imgid.items():
             if (img_id in imgid_label.keys()) and (imgid_label[img_id] in classes_mlp.values()):

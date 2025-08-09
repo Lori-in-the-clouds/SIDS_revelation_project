@@ -67,7 +67,7 @@ class ImageRetrieval:
         """
         self.nbrs = NearestNeighbors(n_neighbors=k + 1, metric=metric).fit(self.embeddings_norm)
 
-    def retrieve_similar(self, idx_query, k=5, verbose=True):
+    def retrieve_similar(self, idx_query, k=5, verbose=True, external_embeddings=False, external_embd= None):
         """
         Retrieve top-k similar images to the query image indexed by idx_query.
 
@@ -87,17 +87,28 @@ class ImageRetrieval:
 
         embeddings_norm = self.embeddings_norm
 
-        nbrs = self.build_index(metric='euclidean', k=k)
+        if external_embeddings:
+            nbrs = self.build_index(metric='euclidean', k=k-1)
+        else:
+            nbrs = self.build_index(metric='euclidean', k=k)
 
-        distances, indices = self.nbrs.kneighbors(embeddings_norm[idx_query].reshape(1, -1))
-        indices = indices[0][1:]  # escludi se stesso
+        if external_embeddings == False:
+            distances, indices = self.nbrs.kneighbors(embeddings_norm[idx_query].reshape(1, -1))
+        else:
+            distances, indices = self.nbrs.kneighbors(self.normalize_embeddings(external_embd).reshape(1, -1))
+
+        if external_embeddings == False:
+            indices = indices[0][1:]  # escludi se stesso
+            distances = distances[0][1:]
+        else:
+            indices = indices[0]
+            distances = distances[0]
 
         if verbose:
             print(f"Query image: {image_paths[idx_query]} (label: {labels[idx_query]})")
             print(f"Top {k} similar images:")
 
         image_paths_similar = []
-
 
         for rank, i in enumerate(indices, start=1):
             if verbose:
@@ -126,6 +137,7 @@ class ImageRetrieval:
         plt.show()
 
     '''METRICS'''
+
     def precision_at_k(self,k=5,verbose=True):
         correct_counts = []
         for i in range(len(self.embeddings_norm)):
@@ -137,6 +149,7 @@ class ImageRetrieval:
         avg_accuracy = np.mean(correct_counts)
         if verbose:
             print(f"Average retrieval accuracy at {k}: {avg_accuracy:.3f}")
+
 
     def recall_at_k(self, k=5, verbose=True):
         recalls = []
@@ -159,6 +172,7 @@ class ImageRetrieval:
         avg_recall = np.mean(recalls)
         if verbose:
             print(f"Recall at {k}: {avg_recall:.3f}")
+
 
 
 
