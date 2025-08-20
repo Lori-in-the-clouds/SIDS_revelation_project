@@ -11,7 +11,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 
 class ImageRetrieval:
 
-    def __init__(self, X, y, image_paths, embedding_features):
+    def __init__(self, embeddings, y, image_paths):
         """
         Build a pandas DataFrame from embeddings, feature names, and labels.
 
@@ -31,49 +31,22 @@ class ImageRetrieval:
         pandas.DataFrame
             DataFrame with embeddings, labels, and optional image paths.
         """
-        df = pd.DataFrame(X, columns=embedding_features)
+        self.embeddings = embeddings.values
+        self.labels = np.array(y)
+        self.image_paths = image_paths
+        self.image_dataset_path = "/home/terra/Documents/AI_engineering/SIDS-project/python_project/SIDS_revelation_project/datasets/onback_onstomach_v2"
+
+        df = embeddings.copy()
         df["label"] = y
         df['image_path'] = image_paths
-
         self.df = df
-        self.embeddings = self.df[embedding_features].to_numpy()
-        self.labels = self.df['label'].to_numpy()
-        self.image_paths = self.df['image_path'].to_list()
+
         self.embeddings_norm = self.normalize_embeddings(self.embeddings)
         self.nbrs = None  # sarà l’indice per nearest neighbor, costruito dopo
-    def extract_df(self, embedding_path, keypoints_path):
-        """
-        Load the embeddings CSV and keypoints npy file, then combine them into a DataFrame.
-        Adds image paths to the dataframe from keypoints metadata.
-
-        Parameters:
-            embedding_path (str): Path to CSV file with embeddings and labels.
-            keypoints_path (str): Path to .npy file with keypoints (contains image filenames).
-
-        Returns:
-            pandas.DataFrame: DataFrame with embeddings, labels, and image paths.
-        """
-        df = pd.read_csv(embedding_path, header=None)
-        kpt = np.load(keypoints_path, allow_pickle=True)
-
-        image_paths = []
-
-        for kpt in kpt:
-            if "file_path" in kpt:
-                image_paths.append(kpt["file_path"])
-            else:
-                image_paths.append("unknown")
-
-        df['image_path'] = image_paths
-        df.rename(columns={28: "label"}, inplace=True)
-
-        for i in range(28):
-            df.rename(columns={i: f"embedding_{i}"}, inplace=True)
-
-        return df
 
     def normalize_embeddings(self, embeddings):
-        return embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
+        epsilon = 1e-10
+        return embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + epsilon)
 
     def build_index(self, metric='euclidean', k=5):
         """
@@ -99,7 +72,7 @@ class ImageRetrieval:
                 distances: array of distances to retrieved images
                 image_paths_similar: list of image file paths retrieved
         """
-        embeddings = self.df.loc[:, 'embedding_0':'embedding_27'].to_numpy()
+        embeddings =self.embeddings
         labels = self.df['label'].to_numpy()
         image_paths = self.df['image_path'].to_list()
 
@@ -194,6 +167,7 @@ class ImageRetrieval:
     def plot_tsne(self):
         tsne = TSNE(n_components=2, perplexity=30, random_state=42)
         X_tsne = tsne.fit_transform(self.embeddings)
+
 
         plt.figure(figsize=(8, 6))
 
