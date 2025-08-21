@@ -17,10 +17,7 @@ class ImageRetrieval:
 
         Parameters
         ----------
-        X : list[list[float]]
-            List of embedding vectors.
-        features : list[str]
-            Names of embedding features.
+
         y : list
             Labels corresponding to each embedding.
         image_paths : list[str], optional
@@ -34,7 +31,7 @@ class ImageRetrieval:
         self.embeddings = embeddings.values
         self.labels = np.array(y)
         self.image_paths = image_paths
-        self.image_dataset_path = "/home/terra/Documents/AI_engineering/SIDS-project/python_project/SIDS_revelation_project/datasets/onback_onstomach_v2"
+        self.image_dataset_path = "/home/terra/Documents/AI_engineering/SIDS-project/python_project/SIDS_revelation_project/datasets/onback_onstomach_v3"
 
         df = embeddings.copy()
         df["label"] = y
