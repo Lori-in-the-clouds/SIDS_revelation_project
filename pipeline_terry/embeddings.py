@@ -320,8 +320,6 @@ class EmbeddingBuilder:
                           "x_nose", "y_nose", "x_mouth", "y_mouth"]
 
         for ft in self.features.to_dict(orient='records'):
-            self.progress_debug(X)
-
             eye1 = ft["eye1"]
             eye2 = ft["eye2"]
             nose = ft["nose"]
@@ -358,7 +356,6 @@ class EmbeddingBuilder:
         features_names = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
 
         for ft in self.features.to_dict(orient='records'):
-            self.progress_debug(X)
             presence_flags = [
                 int(ft["eye1"] != (-1, -1)),
                 int(ft["eye2"] != (-1, -1)),
@@ -394,7 +391,6 @@ class EmbeddingBuilder:
                           "face_angle_vertical", "face_angle_horizontal", "symmetry_diff"]
 
         for ft in self.features.to_dict(orient='records'):
-            self.progress_debug(X)
             presence_flags = [
                 int(ft["eye1"] != (-1, -1)),
                 int(ft["eye2"] != (-1, -1)),
@@ -459,7 +455,6 @@ class EmbeddingBuilder:
                          "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
 
         for ft in self.features.to_dict(orient='records'):
-            self.progress_debug(X)
             presence_flags = [
                 int(ft["eye1"] != (-1, -1)),
                 int(ft["eye2"] != (-1, -1)),

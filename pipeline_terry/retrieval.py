@@ -13,7 +13,7 @@ from sklearn.metrics import silhouette_samples
 
 class ImageRetrieval:
 
-    def __init__(self, embeddings, y, image_paths, image_dataset_path, classes_bs):
+    def __init__(self, embeddings, y, image_paths, image_dataset_path, classes_bs, figsize=(5.6,4.2)):
         """
         Build a pandas DataFrame from embeddings, feature names, and labels.
 
@@ -43,6 +43,8 @@ class ImageRetrieval:
 
         self.embeddings_norm = self.normalize_embeddings(self.embeddings)
         self.nbrs = None  # sarà l’indice per nearest neighbor, costruito dopo
+
+        self.figsize = figsize
 
     def normalize_embeddings(self, embeddings):
         epsilon = 1e-10
@@ -154,7 +156,7 @@ class ImageRetrieval:
             precisions.append(precision)
 
         # plot
-        plt.figure(figsize=(7, 5))
+        plt.figure(figsize=self.figsize)
         plt.plot(k_values, precisions, marker="o", color="blue", linewidth=2)
         plt.title("Precision at different k", fontsize=14)
         plt.xlabel("k", fontsize=12)
@@ -242,7 +244,7 @@ class ImageRetrieval:
         silhouette_score_value = sample_scores.mean()
         classes = np.unique(self.labels)
 
-        plt.figure(figsize=(8, 5))
+        plt.figure(figsize=self.figsize)
 
         for cls in classes:
             cls_scores = sample_scores[self.labels == cls]
@@ -264,7 +266,7 @@ class ImageRetrieval:
         tsne = TSNE(n_components=2, perplexity=30, random_state=42)
         X_tsne = tsne.fit_transform(self.embeddings)
 
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=self.figsize)
 
         # maschere per le due classi
         mask_safe = (self.labels == self.classes_bs["baby_safe"])
@@ -283,7 +285,7 @@ class ImageRetrieval:
     def plot_umap(self):
         reducer = umap.UMAP(n_components=2, random_state=42)
         X_umap = reducer.fit_transform(self.embeddings)
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=self.figsize)
 
         # maschere per le due classi
         mask_safe = (self.labels == self.classes_bs["baby_safe"])
@@ -306,7 +308,7 @@ class ImageRetrieval:
         lda = LDA(n_components=1)
         X_lda = lda.fit_transform(self.embeddings, labels)
 
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=self.figsize)
 
         # istogrammi separati per le due classi
         mask_safe = (self.labels == self.classes_bs["baby_safe"])
@@ -318,7 +320,6 @@ class ImageRetrieval:
                  label="baby_unsafe")
 
         plt.xlabel("LDA Component 1")
-        plt.ylabel("Frequency")
         plt.title(f"Distribuzione LDA degli embedding ({self.embeddings.shape[1]}D → 1D)")
         plt.legend()
         plt.show()

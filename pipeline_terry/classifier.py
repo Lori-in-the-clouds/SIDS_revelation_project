@@ -11,7 +11,7 @@ from sklearn.linear_model import LogisticRegression
 
 
 class Classifier:
-    def __init__(self, embeddings, y, classes_bs):
+    def __init__(self, embeddings, y, classes_bs, figsize = (5.6, 4.2)):
         self.X = embeddings.values
         self.features = embeddings.columns
 
@@ -20,6 +20,7 @@ class Classifier:
 
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42)
 
+        self.figsize = figsize
     def logistic_regression(self):
         clf = LogisticRegression(
             penalty="l2",  # Ridge regularization
@@ -78,7 +79,7 @@ class Classifier:
             print("".center(90, '-'))
 
             # Visualize top 10 feature importances
-            plt.figure(figsize=(10, 5))
+            plt.figure(figsize=self.figsize)
             plt.title("Top 10 feature importances")
             plt.bar(range(10), importances[indices[:10]])
             plt.xticks(range(10), [f"{self.features[i]}" for i in indices[:10]], rotation=90)
@@ -129,7 +130,7 @@ class Classifier:
         n_features = top_k if top_k is not None else len(self.features)
 
         # Visualize all feature importances
-        plt.figure(figsize=(10, 5))
+        plt.figure(figsize=self.figsize)
         plt.title("Ordered feature importances")
         plt.bar(range(n_features), importances[indices[:n_features]])
         plt.xticks(range(n_features), [f"{self.features[i]}" for i in indices[:n_features]], rotation=90)
@@ -150,7 +151,7 @@ class Classifier:
         train_mean = train_scores.mean(axis=1)
         test_mean = test_scores.mean(axis=1)
 
-        plt.figure(figsize=(8, 6))
+        plt.figure(figsize=self.figsize)
         plt.plot(train_sizes, train_mean, 'o-', label="Training accuracy")
         plt.plot(train_sizes, test_mean, 'o-', label="Validation accuracy")
         plt.xlabel("Training set size")
