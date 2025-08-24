@@ -15,9 +15,8 @@ class Classifier:
         self.X = embeddings.values
         self.features = embeddings.columns
 
-        # maps 1 to 0 and 2 to 1
-        self.y = np.array(y)-1
-        self.classes_bs = {entry[0]: (entry[1] - 1) for entry in classes_bs.items()}
+        self.y = np.array(y)
+        self.classes_bs = classes_bs
 
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42)
 

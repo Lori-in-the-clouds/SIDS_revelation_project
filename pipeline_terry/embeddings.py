@@ -99,6 +99,9 @@ class EmbeddingBuilder:
         else:
             raise ValueError(
                 f"Invalid mode '{mode}\n Expected one of: 'extract_features', 'extract_features_imageswithinference', 'load'")
+        self.normalize_labels()
+        self.update_classes()
+
         print("")
         print("Embedding builder initialized successfully".ljust(90, '-'))
         print(f"Face detection model: {self.model_version} (YOLOv8)")
@@ -250,6 +253,19 @@ class EmbeddingBuilder:
 
         # save features and labels in .npy files
         self.save_features()
+
+    def normalize_labels(self):
+        if min(set(self.features["label"])) != 0:
+            self.features["label"] -= 1
+
+        if min (set (self.classes_bs.values())) != 0:
+            self.classes_bs = {entry[0]: (entry[1] - 1) for entry in self.classes_bs.items()}
+
+        if min (set (self.y)) != 0:
+            self.y = np.array(self.y) - 1
+
+    def update_classes(self):
+        self.classes_bs = {"baby_safe" if entry[0] == "baby_on_back" else "baby_unsafe": (entry[1]) for entry in self.classes_bs.items()}
 
     def save_features(self):
         """
