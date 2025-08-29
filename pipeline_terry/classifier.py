@@ -1,13 +1,13 @@
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.base import clone
 from xgboost import XGBClassifier
-
 from sklearn.model_selection import learning_curve
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import RandomizedSearchCV
 
 
 class Classifier:
@@ -21,24 +21,29 @@ class Classifier:
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42)
 
         self.figsize = figsize
-    def logistic_regression(self):
+    def logistic_regression(self,verbose =True):
         clf = LogisticRegression(
             penalty="l2",  # Ridge regularization
             C=0.1,  # smaller C = stronger regularization
             solver="liblinear"
         )
-        self.evaluation_pipeline(clf)
+        t = self.evaluation_pipeline(clf, verbose = verbose)
+        return clf, t
 
-    def random_forest(self):
-        clf = RandomForestClassifier(n_estimators=300,
-                max_depth=8,              # limit tree depth
-                min_samples_split=10,     # require more samples to split
-                min_samples_leaf=5,       # require more samples per leaf
-                max_features="sqrt",      # random feature selection
-                bootstrap=True,
-                random_state=42)
-        self.evaluation_pipeline(clf)
-    def XGBC(self):
+    def random_forest(self,verbose=True):
+        clf = RandomForestClassifier(
+            n_estimators=300,
+            max_depth=5,              # Ridotto per limitare la complessità del modello
+            min_samples_split=20,     # Aumentato per richiedere più campioni per uno split
+            min_samples_leaf=10,      # Aumentato per richiedere più campioni per foglia
+            max_features="sqrt",      # Ottima scelta, mantiene la diversità tra gli alberi
+            bootstrap=True,
+            random_state=None
+        )
+        results = self.evaluation_pipeline(clf,verbose = verbose)
+        return clf,results
+
+    def XGBC(self,verbose=True):
         clf = XGBClassifier(
             n_estimators=300,
             max_depth=5,
@@ -47,63 +52,80 @@ class Classifier:
             colsample_bytree=0.8,
             reg_lambda=1,
             reg_alpha=0.5,
-            random_state=42
-
+            random_state=None
         )
-        self.evaluation_pipeline(clf)
+        results = self.evaluation_pipeline(clf,verbose = verbose)
+        return clf,results
 
+    def bagging(self,base_clf,verbose=True):
+        clf = BaggingClassifier(
+            estimator=base_clf,
+            n_estimators=100,
+            max_samples=0.8,
+            max_features=0.8,
+            random_state=42,
+            n_jobs=-1
+        )
+        results = self.evaluation_pipeline(clf,verbose = verbose)
+        return clf,results
 
-    def evaluation_pipeline(self, clf_untrained):
-        print("".center(90, '-'))
-        print("FIRST ANALYSIS".center(90, '-'))
-        print("".center(90, '-'))
+    def evaluation_pipeline(self, clf_untrained, verbose=True, is_ensemble=False):
+        if verbose:
+            print("".center(90, '-'))
+            print("FIRST ANALYSIS".center(90, '-'))
+            print("".center(90, '-'))
 
         clf_trained = clone(clf_untrained)
-
         clf_trained.fit(self.X_train, self.y_train)
 
-        # Check feature importance
-        importances, indices = self.plot_feature_importance(clf_trained)
+        importances, indices = None, None
+        if not is_ensemble:
+            importances, indices = self.plot_feature_importance(clf_trained, verbose=verbose)
 
-        # learning curve
-        self.plot_learning_curve(clf_untrained)
+        if verbose:
+            self.plot_learning_curve(clf_untrained)
+            self.evaluate_metrics(clf_trained)
 
-        # Evaluate metrics
-        self.evaluate_metrics(clf_trained)
+        results = {
+            'all_features': {
+                'model': clf_trained,
+                'X': self.X,
+                'y': self.y
+            }
+        }
 
-        # Re-train with top 10 features
-        n_features = len(self.features)
-        if n_features > 10 and importances is not None:
-            print("".center(90, '-'))
-            print("TOP 10 FEATURES ANALYSIS".center(90, '-'))
-            print("".center(90, '-'))
+        if not is_ensemble and importances is not None and len(self.features) > 10:
+            if verbose:
+                print("".center(90, '-'))
+                print("TOP 10 FEATURES ANALYSIS".center(90, '-'))
+                print("".center(90, '-'))
+                plt.figure(figsize=self.figsize)
+                plt.title("Top 10 feature importances")
+                plt.bar(range(10), importances[indices[:10]])
+                plt.xticks(range(10), [f"{self.features[i]}" for i in indices[:10]], rotation=90)
+                plt.tight_layout()
+                plt.show()
 
-            # Visualize top 10 feature importances
-            plt.figure(figsize=self.figsize)
-            plt.title("Top 10 feature importances")
-            plt.bar(range(10), importances[indices[:10]])
-            plt.xticks(range(10), [f"{self.features[i]}" for i in indices[:10]], rotation=90)
-            plt.tight_layout()
-            plt.show()
-
-            # Select the 10 most important features
             top_k = 10
             top_features_idx = indices[:top_k]
-
-            # Filter features
             X_train_selected = self.X_train[:, top_features_idx]
             X_test_selected = self.X_test[:, top_features_idx]
             X_selected = self.X[:, top_features_idx]
-
-            # Train
             clf_retrained = clone(clf_untrained)
             clf_retrained.fit(X_train_selected, self.y_train)
 
-            # learning curve
-            self.plot_learning_curve(clf_untrained, X_selected)
+            if verbose:
+                self.plot_learning_curve(clf_untrained, X_selected)
+                self.evaluate_metrics(clf_retrained, X_test_selected)
 
-            # Evaluate metrics
-            self.evaluate_metrics(clf_retrained, X_test_selected)
+            results['top_10_features'] = {
+                'model': clf_retrained,
+                'X': X_selected,
+                'y': self.y,
+                'top_features_idx': top_features_idx  # Added this to the dictionary
+            }
+
+        return results
 
     def evaluate_metrics(self, clf, X_test_selected = None):
         X_test = X_test_selected if X_test_selected is not None else self.X_test
@@ -121,20 +143,27 @@ class Classifier:
         plt.title("Confusion Matrix")
         plt.show()
 
-    def plot_feature_importance(self, clf, top_k = None):
-        if not hasattr(clf, "feature_importances_"):
+    def plot_feature_importance(self, clf, top_k = None,verbose=True):
+
+        importances = None
+        if hasattr(clf, "feature_importances_"):
+            importances = clf.feature_importances_
+        elif hasattr(clf, "coef_"):
+            importances = np.abs(clf.coef_[0])
+
+        if importances is None:
             return None, None
 
-        importances = clf.feature_importances_
         indices = np.argsort(importances)[::-1]
         n_features = top_k if top_k is not None else len(self.features)
 
         # Visualize all feature importances
-        plt.figure(figsize=self.figsize)
-        plt.title("Ordered feature importances")
-        plt.bar(range(n_features), importances[indices[:n_features]])
-        plt.xticks(range(n_features), [f"{self.features[i]}" for i in indices[:n_features]], rotation=90)
-        plt.tight_layout()
+        if verbose:
+            plt.figure(figsize=self.figsize)
+            plt.title("Ordered feature importances")
+            plt.bar(range(n_features), importances[indices[:n_features]])
+            plt.xticks(range(n_features), [f"{self.features[i]}" for i in indices[:n_features]], rotation=90)
+            plt.tight_layout()
 
         return importances, indices
 
@@ -154,8 +183,134 @@ class Classifier:
         plt.figure(figsize=self.figsize)
         plt.plot(train_sizes, train_mean, 'o-', label="Training accuracy")
         plt.plot(train_sizes, test_mean, 'o-', label="Validation accuracy")
+        plt.grid(True)
         plt.xlabel("Training set size")
         plt.ylabel("Accuracy")
         plt.legend()
         plt.title("Learning Curve")
         plt.show()
+
+    def optimize_model(self,model, param_grid,verbose=True):
+
+        print("\nStart random search...")
+        random_search = RandomizedSearchCV(
+            estimator=model,
+            param_distributions=param_grid,
+            n_iter=200,
+            cv=5,
+            scoring="accuracy",
+            n_jobs=-1,
+            random_state=42
+        )
+
+        random_search.fit(self.X_train, self.y_train)
+        # Print the best parameters and the score
+
+        print("\nRandom Search Results:")
+        print("Best parameters found: ", random_search.best_params_)
+        print("Best mean cross-validation accuracy: ", random_search.best_score_)
+
+        # Evaluate the best model on the test set
+        if verbose:
+            print("\nEvaluation of the best model on the test set:")
+
+        self.evaluation_pipeline(random_search.best_estimator_,verbose=verbose)
+        return random_search.best_params_
+
+
+    def plot_learning_curve_comparison(self, data_sets, title, ylim=None, cv=None, n_jobs=-1,
+                                       train_sizes=np.linspace(.1, 1.0, 5),figsize=(10,6)):
+        """
+        Generates a graph comparing the learning curves of multiple models,
+        each with its own dataset.
+
+        Arguments:
+            self: The class instance containing the X and y data.
+            data_sets: A list of tuples, where each tuple contains (model, name, X, y).
+            title: Title of the graph.
+            ylim: Limits of the graph's y-axis.
+            cv: Number of folds for cross-validation.
+            n_jobs: Number of cores to use.
+            train_sizes: Sizes of the training subsets to use for plotting the curve.
+        """
+        plt.figure(figsize=figsize)
+        if title:
+            plt.title(title)
+        if ylim:
+            plt.ylim(*ylim)
+        plt.xlabel("Training examples")
+        plt.ylabel("Score")
+        plt.grid()
+
+        colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k', 'tab:orange', 'tab:green', 'tab:blue', 'tab:red', 'tab:purple',
+                  'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tomato', 'gold', 'lime', 'teal', 'darkviolet']
+        line_styles = ['o-', 'o--']
+
+        for i, (estimator, name, X_data, y_data) in enumerate(data_sets):
+            estimator_clone = clone(estimator)
+
+            train_sizes_i, train_scores_i, test_scores_i = learning_curve(
+                estimator_clone, X_data, y_data, cv=cv, n_jobs=n_jobs, train_sizes=train_sizes)
+
+            train_scores_mean_i = np.mean(train_scores_i, axis=1)
+            test_scores_mean_i = np.mean(test_scores_i, axis=1)
+
+            color_test = colors[i % len(colors)]
+
+            # Training score con linea tratteggiata
+            plt.plot(train_sizes_i, train_scores_mean_i, line_styles[1], color=color_test,
+                     label=f"Training score ({name})")
+
+            # Cross-validation score con linea continua
+            plt.plot(train_sizes_i, test_scores_mean_i, line_styles[0], color=color_test,
+                     label=f"Cross-validation score ({name})")
+
+        # Sposta la legenda fuori dal grafico
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+        plt.subplots_adjust(right=0.75)
+        plt.show()
+
+    def ensemble_on_top_features(self, ensemble_clf, top_features_idx, verbose=True):
+        """
+        Trains a VotingClassifier on the 10 most relevant features.
+
+        Arguments:
+        ensemble_clf: The VotingClassifier instance to be trained.
+        top_features_idx: An array of indices for the top K features.
+        verbose: Whether to display graphs and reports.
+        """
+        if verbose:
+            print("".center(90, '-'))
+            print("ENSEMBLE MODEL EVALUATION ON TOP 10 FEATURES".center(90, '-'))
+            print("".center(90, '-'))
+
+        # Clona l'istanza del classificatore per non modificare l'originale
+        ensemble_clf_cloned = clone(ensemble_clf)
+
+        X_train_selected = self.X_train[:, top_features_idx]
+        X_test_selected = self.X_test[:, top_features_idx]
+        X_selected = self.X[:, top_features_idx]
+
+        ensemble_clf_cloned.fit(X_train_selected, self.y_train)
+
+        if verbose:
+            self.plot_learning_curve(ensemble_clf_cloned, X_selected)
+            self.evaluate_metrics(ensemble_clf_cloned, X_test_selected)
+
+        return {
+            'top_10_features': {
+                'model': ensemble_clf_cloned,
+                'X': X_selected,
+                'y': self.y
+            }
+        }
+
+
+
+
+
+
+
+
+
+
