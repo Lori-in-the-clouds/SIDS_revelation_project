@@ -9,6 +9,7 @@ import cv2
 from datetime import datetime
 import pandas as pd
 import ast
+
 ''' GEOMETRIC FUNCTIONS '''
 
 
@@ -189,7 +190,7 @@ class EmbeddingBuilder:
             elif class_label == "nose":
                 ft["nose"] = (x, y)
             elif class_label == "head":
-                ft["head"] = (x,y,w,h)
+                ft["head"] = (x, y, w, h)
         return ft
 
     def process_dataset(self, mode: str):
@@ -258,21 +259,24 @@ class EmbeddingBuilder:
         if min(set(self.features["label"])) != 0:
             self.features["label"] -= 1
 
-        if min (set (self.classes_bs.values())) != 0:
+        if min(set(self.classes_bs.values())) != 0:
             self.classes_bs = {entry[0]: (entry[1] - 1) for entry in self.classes_bs.items()}
 
-        if min (set (self.y)) != 0:
+        if min(set(self.y)) != 0:
             self.y = np.array(self.y) - 1
 
     def update_classes(self):
-        self.classes_bs = {"baby_safe" if entry[0] == "baby_on_back" else "baby_unsafe": (entry[1]) for entry in self.classes_bs.items()}
+        self.classes_bs = {"baby_safe" if entry[0] == "baby_on_back" else "baby_unsafe": (entry[1]) for entry in
+                           self.classes_bs.items()}
 
     def save_features(self):
         """
                     Save extracted features in .csv file in the dataset folder.
                 """
         print("")
-        print("Saving features in .csv\nDataframe with columns [eye1, eye2, nose, mouth, head, label, image_path]. [eye1, eye2, mouth, label, head] are equal to (-1, -1) if were not detected:".ljust(90, '-'))
+        print(
+            "Saving features in .csv\nDataframe with columns [eye1, eye2, nose, mouth, head, label, image_path]. [eye1, eye2, mouth, label, head] are equal to (-1, -1) if were not detected:".ljust(
+                90, '-'))
         self.features.to_csv(f"{str(self.dataset)}/model{self.model_version}_features.csv", index=False)
 
         print(
@@ -301,172 +305,135 @@ class EmbeddingBuilder:
             f"Features loaded succesfully, in particular there are {self.dim_dataset} files in the dataset")
         print("".ljust(90, '-'))
 
-    def embedding_positions(self):
-        """
-          Create embeddings from facial keypoints.
+    def extract_flags(self, ft: dict):
+        presence_flags = [
+            int(ft["eye1"] != (-1, -1)),
+            int(ft["eye2"] != (-1, -1)),
+            int(ft["nose"] != (-1, -1)),
+            int(ft["mouth"] != (-1, -1)),
+        ]
 
-          Returns
-          -------
-          tuple[list[list[float]], list[str]]
-              A tuple containing:
-              - X: list of embedding vectors
-              - features_names: list of feature names
-        """
-        print("")
-        print("Creation of positions features embedding".ljust(90, '-'))
+        return presence_flags
 
-        X = []
-        features_names = ["x_eye1", "y_eye1", "x_eye2", "y_eye2",
-                          "x_nose", "y_nose", "x_mouth", "y_mouth"]
+    def extract_coordinates(self, ft: dict):
+        eye1 = ft["eye1"]
+        eye2 = ft["eye2"]
+        nose = ft["nose"]
+        mouth = ft["mouth"]
 
-        for ft in self.features.to_dict(orient='records'):
-            eye1 = ft["eye1"]
-            eye2 = ft["eye2"]
-            nose = ft["nose"]
-            mouth = ft["mouth"]
+        coordinates = list(eye1) + list(eye2) + list(nose) + list(mouth)
+        return coordinates
 
-            # coordinates features
-            coordinates = list(eye1) + list(eye2) + list(nose) + list(mouth)
+    def extract_normalized_coordiates(self, ft: dict):
+        eye1 = ft["eye1"]
+        eye2 = ft["eye2"]
+        nose = ft["nose"]
+        mouth = ft["mouth"]
+        head = ft["head"] if ft["head"] != (-1, -1) else -1
 
-            # final embedding
-            embedding = coordinates
-            X.append(embedding)
+        coordinates_norm = normalize(eye1, head) + normalize(eye2, head) + normalize(nose, head) + normalize(mouth,
+                                                                                                             head)
+        return coordinates_norm
 
-        print(f"{len(X)} embedding created")
-        print("".ljust(90, '-'))
+    def extract_geometric_info(self, ft: dict):
+        presence_flags = [
+            int(ft["eye1"] != (-1, -1)),
+            int(ft["eye2"] != (-1, -1)),
+            int(ft["nose"] != (-1, -1)),
+            int(ft["mouth"] != (-1, -1)),
+        ]
 
+        eye1 = ft["eye1"]
+        eye2 = ft["eye2"]
+        nose = ft["nose"]
+        mouth = ft["mouth"]
+        head = ft["head"] if ft["head"] != (-1, -1) else -1
 
-        return pd.DataFrame(X, columns = features_names)
+        # head h/w ration
+        head_ration = (head[3] / head[2]) if (head != -1) else -1
 
-    def embedding_flags(self):
-        """
-          Create embeddings from facial keypoints.
+        # distance between eyes
+        eye_distance = compute_distance(eye1, eye2) if (presence_flags[0] * presence_flags[1]) == 1 else -1
+        eye_distance_norm = (eye_distance / head[2]) if (eye_distance != -1 and head != -1) else -1
 
-          Returns
-          -------
-          tuple[list[list[float]], list[str]]
-              A tuple containing:
-              - X: list of embedding vectors
-              - features_names: list of feature names
-        """
-        print("")
-        print("Creation of flags features embedding".ljust(90, '-'))
+        # vertical face length (nose to mouth)
+        face_vertical_length = compute_distance(nose, mouth) if (presence_flags[2] * presence_flags[
+            3]) == 1 else -1
+        face_vertical_length_norm = (face_vertical_length / head[3]) if (
+                face_vertical_length != -1 and head != -1) else -1
 
-        X = []
-        features_names = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
+        # angle between eye1 – nose – mouth
+        face_angle_vertical = compute_face_angle(eye1, nose, mouth) if (presence_flags[0] * presence_flags[2] *
+                                                                        presence_flags[3]) == 1 else -1
 
-        for ft in self.features.to_dict(orient='records'):
-            presence_flags = [
-                int(ft["eye1"] != (-1, -1)),
-                int(ft["eye2"] != (-1, -1)),
-                int(ft["nose"] != (-1, -1)),
-                int(ft["mouth"] != (-1, -1)),
-            ]
-            # final embedding
-            embedding = presence_flags
-            X.append(embedding)
+        # angle between eye1-nose-eye2
+        face_angle_horizontal = compute_face_angle(eye1, nose, eye2) if (presence_flags[0] * presence_flags[2] *
+                                                                         presence_flags[1]) == 1 else -1
 
-        print(f"{len(X)} embedding created")
-        print("".ljust(90, '-'))
+        # 16: symmetry (difference of eye distances to nose–mouth line)
+        symmetry_diff = 0.0
+        if (presence_flags[0] * presence_flags[1] * presence_flags[2] * presence_flags[3]) == 1:
+            try:
+                eye1_to_axis = compute_point_to_line_distance(eye1, nose, mouth)
+                eye2_to_axis = compute_point_to_line_distance(eye2, nose, mouth)
+                symmetry_diff = abs(eye1_to_axis - eye2_to_axis)
+            except:
+                pass
 
-        return pd.DataFrame(X, columns = features_names)
+        geometric_info = [eye_distance, eye_distance_norm, face_vertical_length, face_vertical_length_norm,
+                     face_angle_vertical, face_angle_horizontal, symmetry_diff, head_ration]
+        return geometric_info
+
+    """     Embeddings types        """
 
     def embedding_all_features(self):
-        """
-          Create embeddings from facial keypoints.
-
-          Returns
-          -------
-          tuple[list[list[float]], list[str]]
-              A tuple containing:
-              - X: list of embedding vectors
-              - features_names: list of feature names
-        """
-        print("")
-        print("Creation of all features embedding".ljust(90, '-'))
-
         X = []
         features_names = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth", "x_eye1", "y_eye1", "x_eye2", "y_eye2",
                           "x_nose", "y_nose", "x_mouth", "y_mouth", "eye_distance", "face_vertical_length",
-                          "face_angle_vertical", "face_angle_horizontal", "symmetry_diff"]
+                          "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ratio"]
+
+        print("")
+        print("Creation of embeddings".ljust(90, '-'))
+        print(f"Features: {features_names}")
 
         for ft in self.features.to_dict(orient='records'):
-            presence_flags = [
-                int(ft["eye1"] != (-1, -1)),
-                int(ft["eye2"] != (-1, -1)),
-                int(ft["nose"] != (-1, -1)),
-                int(ft["mouth"] != (-1, -1)),
-            ]
-            eye1 = ft["eye1"]
-            eye2 = ft["eye2"]
-            nose = ft["nose"]
-            mouth = ft["mouth"]
-
-            # coordinates features
-            coordinates = list(eye1) + list(eye2) + list(nose) + list(mouth)
-
-            # distance between eyes
-            eye_distance = compute_distance(eye1, eye2) if (presence_flags[0] * presence_flags[1]) == 1 else -1
-
-            # vertical face length (nose to mouth)
-            face_vertical_length = compute_distance(nose, mouth) if (presence_flags[2] * presence_flags[3]) == 1 else -1
-
-            # angle between eye1 – nose – mouth
-            face_angle_vertical = compute_face_angle(eye1, nose, mouth) if (presence_flags[0] * presence_flags[2] *
-                                                                            presence_flags[3]) == 1 else -1
-
-            # angle between eye1-nose-eye2
-            face_angle_horizontal = compute_face_angle(eye1, nose, eye2) if (presence_flags[0] * presence_flags[2] *
-                                                                             presence_flags[1]) == 1 else -1
-
-            # 16: symmetry (difference of eye distances to nose–mouth line)
-            symmetry_diff = 0.0
-            if (presence_flags[0] * presence_flags[1] * presence_flags[2] * presence_flags[3]) == 1:
-                try:
-                    eye1_to_axis = compute_point_to_line_distance(eye1, nose, mouth)
-                    eye2_to_axis = compute_point_to_line_distance(eye2, nose, mouth)
-                    symmetry_diff = abs(eye1_to_axis - eye2_to_axis)
-                except:
-                    pass
+            presence_flags = self.extract_flags(ft)
+            coordinates = self.extract_coordinates(ft)
+            geometric_info = self.extract_geometric_info(ft)
 
             # final embedding
             embedding = (
                     presence_flags +
                     coordinates +
-                    [eye_distance, face_vertical_length, face_angle_vertical, face_angle_horizontal, symmetry_diff]
+                    geometric_info
             )
             X.append(embedding)
 
         print(f"{len(X)} embedding created")
         print("".ljust(90, '-'))
 
-        return pd.DataFrame(X, columns = features_names)
+        return pd.DataFrame(X, columns=features_names)
 
     def embedding_all_features_norm(self):
+        X = []
+        features_names = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth",
+                          "x_eye1", "y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth",
+                          "x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm",
+                          "x_mouth_norm", "y_mouth_norm",
+                          "eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
+                          "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
+
         print("")
         print("Creation of all features embedding".ljust(90, '-'))
-
-        X = []
-        features_name = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth",
-                         "x_eye1", "y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth",
-                         "x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm",
-                         "x_mouth_norm", "y_mouth_norm",
-                         "eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
-                         "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
+        print(f"Features: {features_names}")
 
         for ft in self.features.to_dict(orient='records'):
-            presence_flags = [
-                int(ft["eye1"] != (-1, -1)),
-                int(ft["eye2"] != (-1, -1)),
-                int(ft["nose"] != (-1, -1)),
-                int(ft["mouth"] != (-1, -1)),
-            ]
+            presence_flags = self.extract_flags(ft)
             eye1 = ft["eye1"]
             eye2 = ft["eye2"]
             nose = ft["nose"]
             mouth = ft["mouth"]
             head = ft["head"] if ft["head"] != (-1, -1) else -1
-
 
             # coordinates keypoints
             coordinates = list(eye1) + list(eye2) + list(nose) + list(mouth)
@@ -516,101 +483,39 @@ class EmbeddingBuilder:
             X.append(embedding)
 
         print(f"FINISHED: {len(X)} embedding created")
-        return pd.DataFrame(X, columns = features_name)
+        return pd.DataFrame(X, columns=features_names)
 
-'''
-
-    def process_dataset(self, mode: str):
-        """
-        Extract features and labels from all `.jpg` images in the dataset.
-
-        - Loads dataset info and maps images to labels.
-        - Runs detection with `self.model_fd` and extracts features and labels
-        - If `mode == "imageswithinference"`, saves images with drawn bounding boxes
-          to a dedicated 'prediction' folder in the model folder.
-        - Saves extracted features and labels in a file .npy.
-
-        Parameters
-        ----------
-        mode : str
-            - "default": extract features and labels and save them
-            - "imageswithinference": same as above + save images with face detection inference (bboxes)
-        """
-        # extract classes_bs, dim_dataset, file_label dictionary
-        self.extract_dataset_info()
-
-        # prepare output_dir for imageswithinference
-        output_dir = None
-        if mode == "imageswithinference":
-            date_str = datetime.now().strftime("%Y-%m-%d-%H-%M")
-            output_dir = Path(f"../models/{self.model_version}.predictions.{date_str}")
-            output_dir.mkdir(exist_ok=True, parents=True)
+    def create_embedding(self, flags=False, positions=False, positions_normalized=False, geometric_info=False):
+        features_names = []
+        if flags:
+            features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
+        if positions:
+            features_names += ["x_eye1", "y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth"]
+        if positions_normalized:
+            features_names += ["x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm",
+                               "x_mouth_norm", "y_mouth_norm"]
+        if geometric_info:
+            features_names += ["eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
+                               "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
+        X = []
 
         print("")
-        print("Feature extraction for each dataset image".ljust(90, '-') if mode == "default"
-              else "Feature extraction + generation of image with bboxes for each dataset image".ljust(90, '-'))
-        # extract features from each file
-        for img_path in self.dataset.glob("*.jpg"):
-            if img_path.name not in self.file_label:
-                continue
+        print("Embedding creation".ljust(90, '-'))
+        print(f"Features: {features_names}")
 
-            self.progress_debug(self.y)
-            result = self.model_fd(img_path, conf=0.3, verbose=False)[0]
+        for ft in self.features.to_dict(orient='records'):
+            embedding = []
+            if flags:
+                embedding += self.extract_flags(ft)
+            if positions:
+                embedding += self.extract_coordinates(ft)
+            if positions_normalized:
+                embedding += self.extract_normalized_coordiates(ft)
+            if geometric_info:
+                embedding += self.extract_geometric_info(ft)
 
-            ft = self.features_extractor(result.boxes)
-            ft["file_path"] = img_path.name
+            X.append(embedding)
 
-            label = self.file_label[img_path.name]
-            ft["label"] = label
-
-            self.features.append(ft)
-            self.y.append(label)
-            self.image_paths.append(img_path.name)
-
-            if output_dir:
-                # save image with bboxes
-                img = cv2.imread(str(img_path))
-                for box in result.boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                    cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.imwrite(str(output_dir / img_path.name), img)
-
-        print(f"{len(self.y)} image processed, features(self.features) and labels(self.y) extracted")
+        print(f"FINISHED: {len(X)} embedding created")
         print("".ljust(90, '-'))
-
-        # save features and labels in .npy files
-        self.save_features_and_y()
-        
-        
-            def save_features_and_y(self):
-        """
-            Save extracted features and corresponding labels to .npy files.
-        """
-        print("")
-        print("Saving features in .npy:".ljust(90, '-'))
-        np.save(f"{str(self.dataset)}/baseline_model{self.model_version}_features.npy", self.features)
-        np.save(f"{str(self.dataset)}/baseline_model{self.model_version}_labels.npy", self.y)
-
-        print(
-            f"Features saved in '{str(self.dataset)}/baseline_model{self.model_version}_features.npy' and labels saved in '{str(self.dataset)}/baseline_model{self.model_version}_labels.npy")
-        print("".ljust(90, '-'))
-
-    def load_features_and_y(self):
-        """
-            Load features and corresponding labels from .npy files.
-        """
-        print("")
-        print("Loading features from .npy".ljust(90, '-'))
-        self.features = np.load(f"{str(self.dataset)}/baseline_model{self.model_version}_features.npy",
-                                allow_pickle=True).tolist()
-        self.y = np.load(f"{str(self.dataset)}/baseline_model{self.model_version}_labels.npy",
-                         allow_pickle=True).tolist()
-        self.dim_dataset = len(self.y)
-        self.image_paths = [ft["file_path"] for ft in self.features]
-
-        print(
-            f"features and labels loaded succesfully, in particular there are {self.dim_dataset} files in the dataset")
-        print("".ljust(90, '-'))
-
-
-'''
+        return pd.DataFrame(X, columns=features_names)

@@ -10,6 +10,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import silhouette_score
 from sklearn.metrics import silhouette_samples
 
+from matplotlib.lines import Line2D
 
 class ImageRetrieval:
 
@@ -50,7 +51,7 @@ class ImageRetrieval:
         epsilon = 1e-10
         return embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + epsilon)
 
-    def build_index(self, metric='euclidean', k=5):
+    def build_index(self, metric='euclidean', k=None):
         """
         Build the nearest neighbor index on normalized embeddings.
 
@@ -58,6 +59,9 @@ class ImageRetrieval:
             metric (str): Distance metric to use ('euclidean' or 'cosine').
             k (int): Number of neighbors to consider (k+1 to account for self).
         """
+        if k == None:
+            k = len(self.embeddings_norm)
+
         self.nbrs = NearestNeighbors(n_neighbors=k + 1, metric=metric).fit(self.embeddings_norm)
 
     def retrieve_similar(self, idx_query, k=5, verbose=True, external_embeddings=False, external_embd=None):
@@ -131,7 +135,7 @@ class ImageRetrieval:
 
     '''METRICS'''
 
-    def precision_at_k(self, k=5, verbose=False):
+    def precision_at_k(self, k=None, verbose=False):
         correct_counts = []
         for i in range(len(self.embeddings_norm)):
             distances, indices = self.nbrs.kneighbors(self.embeddings_norm[i].reshape(1, -1), n_neighbors=k + 1)
@@ -145,7 +149,7 @@ class ImageRetrieval:
 
         return avg_accuracy
 
-    def plot_precision_at_k(self, k_values=None):
+    def plot_precision_at_k(self, k_values=None, verbose = True):
         if k_values is None:
             k_values = [5, 10, 20, 50, 100]
 
@@ -155,16 +159,17 @@ class ImageRetrieval:
             precision = self.precision_at_k(k=k, verbose=False)
             precisions.append(precision)
 
-        # plot
-        plt.figure(figsize=self.figsize)
-        plt.plot(k_values, precisions, marker="o", color="blue", linewidth=2)
-        plt.title("Precision at different k", fontsize=14)
-        plt.xlabel("k", fontsize=12)
-        plt.ylabel("Precision", fontsize=12)
-        plt.xticks(k_values)
-        plt.grid(True, linestyle="--", alpha=0.6)
-        plt.tight_layout()
-        plt.show()
+        if verbose:
+            # plot
+            plt.figure(figsize=self.figsize)
+            plt.plot(k_values, precisions, marker="o", color="blue", linewidth=2)
+            plt.title("Precision at different k", fontsize=14)
+            plt.xlabel("k", fontsize=12)
+            plt.ylabel("Precision", fontsize=12)
+            plt.xticks(k_values)
+            plt.grid(True, linestyle="--", alpha=0.6)
+            plt.tight_layout()
+            plt.show()
 
         return precisions
 
@@ -228,7 +233,6 @@ class ImageRetrieval:
     def plot_silhouette_per_class(self, metric="euclidean", verbose=False):
         n_samples = len(self.embeddings_norm)
         distances, indices = self.nbrs.kneighbors(self.embeddings_norm, n_neighbors=n_samples)
-        dist_matrix = distances[:, 1:]  # shape: N x (N-1)
         dist_matrix_full = np.zeros((n_samples, n_samples))
         for i in range(n_samples):
             # inserisci le distanze nei rispettivi posti
@@ -243,24 +247,23 @@ class ImageRetrieval:
         )
         silhouette_score_value = sample_scores.mean()
         classes = np.unique(self.labels)
-
-        plt.figure(figsize=self.figsize)
-
-        for cls in classes:
-            cls_scores = sample_scores[self.labels == cls]
-            plt.hist(cls_scores, bins=20, alpha=0.6,
-                     label=f"Class {next((k for k, v in self.classes_bs.items() if v == cls), None)}", density=False)
-
-        plt.axvline(sample_scores.mean(), color="red", linestyle="--", label=f"Mean = {silhouette_score_value:.3f}")
-        plt.xlabel("Silhouette coefficient")
-        plt.ylabel("Numero di campioni")
-        plt.title("Distribuzione Silhouette score per classe")
-        plt.legend()
-        plt.grid(True, linestyle="--", alpha=0.6)
-        plt.show()
-
         if verbose:
+            plt.figure(figsize=self.figsize)
+
+            for cls in classes:
+                cls_scores = sample_scores[self.labels == cls]
+                plt.hist(cls_scores, bins=20, alpha=0.6,
+                         label=f"Class {next((k for k, v in self.classes_bs.items() if v == cls), None)}", density=False)
+
+            plt.axvline(sample_scores.mean(), color="red", linestyle="--", label=f"Mean = {silhouette_score_value:.3f}")
+            plt.xlabel("Silhouette coefficient")
+            plt.ylabel("Numero di campioni")
+            plt.title("Distribuzione Silhouette score per classe")
+            plt.legend()
+            plt.grid(True, linestyle="--", alpha=0.6)
+            plt.show()
             print(f"Silhouette score ({metric}): {silhouette_score_value:.3f}")
+        return silhouette_score_value
 
     def plot_tsne(self):
         tsne = TSNE(n_components=2, perplexity=30, random_state=42)
@@ -284,21 +287,17 @@ class ImageRetrieval:
 
     def plot_umap(self):
         reducer = umap.UMAP(n_components=2, random_state=42)
-        X_umap = reducer.fit_transform(self.embeddings)
-        plt.figure(figsize=self.figsize)
+        proj = reducer.fit_transform(self.embeddings_norm)
 
-        # maschere per le due classi
-        mask_safe = (self.labels == self.classes_bs["baby_safe"])
-        mask_unsafe = (self.labels == self.classes_bs["baby_unsafe"])
+        cmap = plt.colormaps["coolwarm"].resampled(2)
+        legend_elements = []
+        for label_name, label_idx in self.classes_bs.items():
+            legend_elements.append(
+                Line2D([0], [0], marker='o', color='w', markerfacecolor=cmap(label_idx), markersize=6, label=label_name)
+            )
 
-        # scatter separati per avere legenda chiara
-        plt.scatter(X_umap[mask_safe, 0], X_umap[mask_safe, 1],
-                    c="blue", alpha=0.7, label="baby_safe")
-        plt.scatter(X_umap[mask_unsafe, 0], X_umap[mask_unsafe, 1],
-                    c="red", alpha=0.3, label="baby_unsafe")
-
-        plt.legend()
-        plt.title(f"UMAP degli embedding ({self.embeddings.shape[1]}D → 2D)")
+        plt.scatter(proj[:, 0], proj[:, 1], c=self.labels, s=6, cmap=cmap)
+        plt.legend(handles=legend_elements, title="Labels", loc="best")
         plt.show()
 
     def plot_lda(self):
