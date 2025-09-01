@@ -27,8 +27,8 @@ class Classifier:
             C=0.1,  # smaller C = stronger regularization
             solver="liblinear"
         )
-        t = self.evaluation_pipeline(clf, verbose = verbose)
-        return clf, t
+        result = self.evaluation_pipeline(clf, verbose = verbose)
+        return clf, result
 
     def random_forest(self,verbose=True):
         clf = RandomForestClassifier(
