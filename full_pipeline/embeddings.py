@@ -519,3 +519,30 @@ class EmbeddingBuilder:
         print(f"FINISHED: {len(X)} embedding created")
         print("".ljust(90, '-'))
         return pd.DataFrame(X, columns=features_names)
+
+
+    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False):
+        features_names = []
+        if flags:
+            features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
+        if positions:
+            features_names += ["x_eye1", "y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth"]
+        if positions_normalized:
+            features_names += ["x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm",
+                               "x_mouth_norm", "y_mouth_norm"]
+        if geometric_info:
+            features_names += ["eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
+                               "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
+
+        embedding = []
+        if flags:
+            embedding += self.extract_flags(ft)
+        if positions:
+            embedding += self.extract_coordinates(ft)
+        if positions_normalized:
+            embedding += self.extract_normalized_coordiates(ft)
+        if geometric_info:
+            embedding += self.extract_geometric_info(ft)
+
+        return np.array(embedding)
+
