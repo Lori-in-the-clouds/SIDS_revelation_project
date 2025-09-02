@@ -8,5 +8,5 @@
 !**/*.json
 !**/*.py
 !**/*.pdf
-!models/4.predictions_misclassification/**/*.jpg
+!**/*.txt
 *.mp4
