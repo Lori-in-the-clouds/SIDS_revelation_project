@@ -11,3 +11,5 @@
 !**/*.pdf
 !**/*.txt
 *.mp4
+
+!models/**/*.png
