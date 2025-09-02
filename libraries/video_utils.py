@@ -142,7 +142,7 @@ def process_video(input_video_path: str,
 
         # --- Success rate (solo se use_filters=True) ---
         if use_filters:
-            has_any_keypoint = any(k in kpt and kpt[k] != (-1, -1) for k in required_kpts)
+            has_any_keypoint = any(k in kpt and kpt[k] != (-1, -1) and k!="head" for k in required_kpts)
             history.append(1 if has_any_keypoint else 0)
             success_rate = sum(history) / len(history) if history else 0
 
