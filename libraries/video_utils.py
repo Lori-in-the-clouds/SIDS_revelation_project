@@ -33,11 +33,6 @@ def enhance_contrast_brightness(frame,level):
 
     return cv2.convertScaleAbs(frame, alpha=alpha, beta=beta)
 
-import cv2
-import os
-import numpy as np
-from collections import deque
-
 # ===============================
 # Utility functions
 # ===============================
