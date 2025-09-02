@@ -181,9 +181,9 @@ def process_video(input_video_path: str,
         if use_filters:
             label_text = f"{'Safe' if pred == 1 else 'In Danger'} ({prob * 100:.1f}%)"
         else:
-            label_text = f"{'On Back' if pred == 1 else 'On Stomach'} ({prob * 100:.1f}%)"
+            label_text = f"{'Safe' if pred == 1 else 'In Danger'} ({prob * 100:.1f}%)"
 
-        color = (0, 255, 0) if (("Safe" in label_text) or ("On Back" in label_text)) else (0, 0, 255)
+        color = (0, 255, 0) if (("Safe" in label_text) or ("Safe" in label_text)) else (0, 0, 255)
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         cv2.imshow("Video Prediction", frame)
