@@ -208,7 +208,7 @@ def count_zero_nonzero(lst):
 
 
 def plot_comparison(valid_boxes_per_frame_with_filter, valid_boxes_per_frame_without_filter):
-    """Pie and bar comparison between filtered and unfiltered runs."""
+    """Pie and bar comparison between filtered and unfiltered runs_keypoints."""
     counts_with = count_zero_nonzero(valid_boxes_per_frame_with_filter)
     counts_without = count_zero_nonzero(valid_boxes_per_frame_without_filter)
 
