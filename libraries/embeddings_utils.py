@@ -1,12 +1,10 @@
 import numpy as np
+import ultralytics
 from ultralytics.engine.results import Boxes
 from ultralytics import YOLO
-
 from pathlib import Path
-import os
 import json
 import cv2
-from datetime import datetime
 import pandas as pd
 import ast
 
@@ -45,7 +43,7 @@ def normalize(coordinates, head):
 
 
 class EmbeddingBuilder:
-    def __init__(self, weights_path: str, dataset_path: str, mode: str):
+    def __init__(self, weights_path_fd: str, dataset_path: str, mode: str, weights_path_pe: str=None):
         """
         Initialize the EmbeddingBuilder.
 
@@ -76,9 +74,10 @@ class EmbeddingBuilder:
             ValueError: If an invalid mode is provided.
         """
         # load YOLOv8 model
-        self.model_fd = YOLO(weights_path)
+        self.model_fd = YOLO(weights_path_fd)
         self.classes_fd = self.model_fd.names
-        self.model_version = weights_path.split(".weights")[0][-1]
+        self.model_version = weights_path_fd.split(".fd_weights")[0][-1]
+        self.model_pe = YOLO(weights_path_pe) if weights_path_pe else None
 
         # dataset info
         self.dataset = Path(dataset_path)
@@ -193,6 +192,36 @@ class EmbeddingBuilder:
                 ft["head"] = (x, y, w, h)
         return ft
 
+    def features_extractor_keypoints(self, prediction:ultralytics.engine.results.Results):
+        keypoint_names = [
+            "nose_k", "left_eye_k", "right_eye_k", "left_ear", "right_ear",
+            "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+            "left_wrist", "right_wrist", "left_hip", "right_hip",
+            "left_knee", "right_knee", "left_ankle", "right_ankle"
+        ]
+
+        if prediction.keypoints.conf.shape[0] == 0:
+            return {name: (-1, -1) for name in keypoint_names}
+
+        else:
+            conf = prediction.keypoints.conf.numpy()[0].reshape(-1, 1).T
+            #data_xy = prediction.keypoints.xy.numpy()[0].T
+            data_xyn = prediction.keypoints.xyn.numpy()[0].T
+
+            merged = np.vstack((data_xyn, conf))
+            keypoints = pd.DataFrame(merged, index=["x", "y", "conf"], columns=keypoint_names)
+            kpt = {}
+            for col in keypoints.columns:
+                if keypoints.loc["conf", col] < 0.1:
+                    kpt[col] = (-1, -1)
+                else:
+                    x = float(keypoints.loc["x", col])
+                    y = float(keypoints.loc["y", col])
+                    kpt[col] = (x, y)
+            return kpt
+
+
+
     def process_dataset(self, mode: str):
         """
         Extract features and labels from all `.jpg` images in the dataset.
@@ -227,9 +256,13 @@ class EmbeddingBuilder:
                 continue
 
             self.progress_debug(self.features)
-            result = self.model_fd(img_path, conf=0.3, verbose=False)[0]
+            result_fd = self.model_fd(img_path, conf=0.3, verbose=False)[0]
+            result_pe =self.model_pe(img_path, conf=0.3, verbose=False)[0] if self.model_pe else None
 
-            ft = self.features_extractor(result.boxes)
+            ft_fd = self.features_extractor(result_fd.boxes)
+            ft_pe = self.features_extractor_keypoints(result_pe) if self.model_pe else {}
+
+            ft = ft_pe | ft_fd
             ft["image_path"] = img_path.name
 
             label = self.file_label[img_path.name]
@@ -237,13 +270,25 @@ class EmbeddingBuilder:
 
             self.features.append(ft)
 
-            if output_dir:
-                # save image with bboxes
-                img = cv2.imread(str(img_path))
-                for box in result.boxes:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-                    cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.imwrite(str(output_dir / img_path.name), img)
+            if output_dir and (len(self.features) < self.dim_dataset/100):
+                if self.model_pe:
+                    # keypoints (BGR ndarray)
+                    img_with_kp = result_pe.plot()
+
+                    # bboxes
+                    for box in result_fd.boxes :
+                        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                        cv2.rectangle(img_with_kp, (x1, y1), (x2, y2), (0, 255, 0), 2)
+
+                    cv2.imwrite(str(output_dir / img_path.name), img_with_kp)
+
+                else:
+                    # save image with bboxes
+                    img = cv2.imread(str(img_path))
+                    for box in result_fd.boxes:
+                        x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.imwrite(str(output_dir / img_path.name), img)
 
         self.features = pd.DataFrame(self.features)
         self.y = self.features["label"].tolist()
@@ -251,7 +296,7 @@ class EmbeddingBuilder:
         print(f"{len(self.y)} image processed, features(self.features) and labels(self.y) extracted")
         print("".ljust(90, '-'))
 
-        # save features and labels in .npy files
+        # save features and labels in .csv files
         self.save_features()
 
     def normalize_labels(self):
@@ -276,10 +321,10 @@ class EmbeddingBuilder:
         print(
             "Saving features in .csv\nDataframe with columns [eye1, eye2, nose, mouth, head, label, image_path]. [eye1, eye2, mouth, label, head] are equal to (-1, -1) if were not detected:".ljust(
                 90, '-'))
-        self.features.to_csv(f"{str(self.dataset)}/model{self.model_version}_features.csv", index=False)
+        self.features.to_csv(f"{str(self.dataset)}/model{self.model_version}_features{'_keypoints' if self.model_pe else ''}.csv", index=False)
 
         print(
-            f"Features saved in '{str(self.dataset)}/model{self.model_version}_features.csv'")
+            f"Features saved in '{str(self.dataset)}/model{self.model_version}_features{'_keypoints' if self.model_pe else ''}.csv'")
         print("".ljust(90, '-'))
 
     def load_features(self):
@@ -288,7 +333,7 @@ class EmbeddingBuilder:
         """
         print("")
         print("Loading features from .csv".ljust(90, '-'))
-        self.features = pd.read_csv(f"{str(self.dataset)}/model{self.model_version}_features.csv")
+        self.features = pd.read_csv(f"{str(self.dataset)}/model{self.model_version}_features{'_keypoints' if self.model_pe else ''}.csv")
         exclude_cols = {"label", "image_path"}
         for col in self.features.columns:
             if col not in exclude_cols:
@@ -484,7 +529,7 @@ class EmbeddingBuilder:
         print(f"FINISHED: {len(X)} embedding created")
         return pd.DataFrame(X, columns=features_names)
 
-    def create_embedding(self, flags=False, positions=False, positions_normalized=False, geometric_info=False):
+    def create_embedding(self, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False, k_geometric_info=False):
         features_names = []
         if flags:
             features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
@@ -496,6 +541,19 @@ class EmbeddingBuilder:
         if geometric_info:
             features_names += ["eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
                                "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
+        if k_positions_normalized:
+            features_names += [ "x_nose_k", "y_nose_k", "x_left_eye_k", "y_left_eye_k", "x_right_eye_k", "y_right_eye_k", "x_left_ear", "y_left_ear", "x_right_ear","y_right_ear"
+                                "x_left_shoulder","y_left_shoulder", "x_right_shoulder", "y_right_shoulder", "x_left_elbow","y_left_elbow", "x_right_elbow","y_right_elbow",
+                                "x_left_wrist","y_left_wrist", "x_right_wrist", "y_right_wrist", "x_left_hip","y_left_hip", "x_right_hip","y_right_hip",
+                                "x_left_wrist","y_left_wrist", "x_right_wrist", "y_right_wrist", "x_left_hip","y_left_hip", "x_right_hip","y_right_hip",
+                                "x_left_knee", "y_left_knee","x_right_knee","y_right_knee", "x_left_ankle","y_left_ankle", "x_right_ankle","y_right_ankle"
+                                ]
+        if k_geometric_info:
+            features_names += ["shoulders_dist", "shoulder_hip_right_dist", "shoulder_hip_left_dist", "nose_shoulder_right", "nose_shoulder_left", "shoulder_left_knee_right", "shoulder_right_knee_left", "knee_ankle_right", "knee_ankle_left"]
+            features_names+= ["elbow_shoulder_hip_right","elbow_shoulder_hip_left","shoulder_elbow_wrist_right","shoulder_elbow_wrist_left",
+                              "shoulder_hip_knee_right","shoulder_hip_knee_left","hip_knee_ankle_right","hip_knee_ankle_left",
+                              "shoulders_line_inclination","hips_line_inclination","torsion"]
+
         X = []
 
         print("")
@@ -512,12 +570,74 @@ class EmbeddingBuilder:
                 embedding += self.extract_normalized_coordiates(ft)
             if geometric_info:
                 embedding += self.extract_geometric_info(ft)
+            if k_positions_normalized:
+                embedding+= self.normalize_wrt_body_center(ft)
+            if k_geometric_info:
+                embedding+= self.distances_between_keypoints(ft)
+
 
             X.append(embedding)
 
         print(f"FINISHED: {len(X)} embedding created")
         print("".ljust(90, '-'))
         return pd.DataFrame(X, columns=features_names)
+
+    def normalize_wrt_body_center(self, ft):
+        x_center = (ft["left_shoulder"][0] + ft["right_shoulder"][0]) / 2.0
+        y_center = (ft["left_shoulder"][1] + ft["right_shoulder"][1]) / 2.0
+
+        kpts=["nose_k", "left_eye_k", "right_eye_k", "left_ear", "right_ear",
+         "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+         "left_wrist", "right_wrist", "left_hip", "right_hip",
+         "left_knee", "right_knee", "left_ankle", "right_ankle"
+         ]
+        embedding = []
+
+        for el in kpts:
+            embedding.append(ft[el][0]-x_center)
+            embedding.append(ft[el][1]-y_center)
+        return embedding
+
+    def distances_between_keypoints(self,ft):
+        shoulders_dist= compute_distance(ft["left_shoulder"], ft["right_shoulder"])
+        shoulder_hip_right_dist = compute_distance(ft["right_shoulder"], ft["right_hip"])
+        shoulder_hip_left_dist = compute_distance(ft["left_shoulder"], ft["left_hip"])
+        nose_shoulder_right=compute_distance(ft["nose"], ft["right_shoulder"])
+        nose_shoulder_left=compute_distance(ft["nose"], ft["left_shoulder"])
+        shoulder_left_knee_right = compute_distance(ft["left_shoulder"], ft["right_knee"])
+        shoulder_right_knee_left = compute_distance(ft["right_shoulder"], ft["left_knee"])
+        knee_ankle_right = compute_distance(ft["right_knee"], ft["right_ankle"])
+        knee_ankle_left = compute_distance(ft["left_knee"], ft["left_ankle"])
+
+        embedding = [shoulders_dist, shoulder_hip_right_dist, shoulder_hip_left_dist, nose_shoulder_right, nose_shoulder_left, shoulder_left_knee_right, shoulder_right_knee_left, knee_ankle_right, knee_ankle_left]
+        return embedding
+
+    def angles_between_keypoints(self, ft):
+        elbow_shoulder_hip_right = compute_face_angle(ft["elbow_right"], ft["shoulder_right"], ft["hip_right"])
+        elbow_shoulder_hip_left = compute_face_angle(ft["elbow_left"], ft["shoulder_left"], ft["hip_left"])
+
+        shoulder_elbow_wrist_right = compute_face_angle(ft["shoulder_right"],ft["elbow_right"], ft["writst_right"])
+        shoulder_elbow_wrist_left = compute_face_angle(ft["shoulder_left"], ft["elbow_left"], ft["writst_left"])
+
+        shoulder_hip_knee_right = compute_face_angle(ft["shoulder_right"],ft["hip_right"], ft["knee_right"])
+        shoulder_hip_knee_left = compute_face_angle(ft["shoulder_left"],ft["hip_left"], ft["knee_left"])
+
+        hip_knee_ankle_right =compute_face_angle(ft["hip_right"], ft["knee_right"], ft["ankle_right"])
+        hip_knee_ankle_left =compute_face_angle(ft["hip_left"], ft["knee_left"], ft["ankle_left"])
+
+
+        angle_shoulders = np.arctan2(ft["right_shoulder"][1] - ft["left_shoulder"][1], ft["right_shoulder"][0] - ft["left_shoulder"][0])
+        shoulders_line_inclination=np.degrees(angle_shoulders)
+
+        angle_hips = np.arctan2(ft["right_hip"][1] - ft["left_hip"][1],ft["right_hip"][0] - ft["left_hip"][0])
+        hips_line_inclination=np.degrees(angle_hips)
+
+        torsion = np.abs(angle_shoulders-angle_hips)
+
+        embedding = [elbow_shoulder_hip_right,elbow_shoulder_hip_left,shoulder_elbow_wrist_right,
+                     shoulder_elbow_wrist_left,shoulder_hip_knee_right,shoulder_hip_knee_left,
+                     hip_knee_ankle_right,hip_knee_ankle_left,shoulders_line_inclination,hips_line_inclination,torsion]
+        return embedding
 
 
     def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False):

@@ -2,6 +2,7 @@ import subprocess
 from datetime import datetime
 import os
 from pathlib import Path
+
 def save_as_pdf(notebook):
     today = datetime.now().strftime("%Y-%m-%d")
     output_dir = f"{notebook.parent}/reports"
