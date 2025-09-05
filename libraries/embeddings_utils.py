@@ -1,5 +1,6 @@
 import numpy as np
 import ultralytics
+from pandas import DataFrame
 from ultralytics.engine.results import Boxes
 from ultralytics import YOLO
 from pathlib import Path
@@ -7,6 +8,15 @@ import json
 import cv2
 import pandas as pd
 import ast
+from sklearn.preprocessing import StandardScaler
+
+
+def standard_scaler_embeddings(embeddings: DataFrame):
+    embeddings_df = embeddings
+    scaler = StandardScaler()
+    embeddings_scaled = scaler.fit_transform(embeddings_df)
+    embeddings_scaled_df = pd.DataFrame(embeddings_scaled, columns=embeddings_df.columns, index=embeddings_df.index)
+    return embeddings_scaled_df
 
 ''' GEOMETRIC FUNCTIONS '''
 
@@ -81,8 +91,9 @@ class EmbeddingBuilder:
         # load YOLOv8 model
         self.model_fd = YOLO(weights_path_fd)
         self.classes_fd = self.model_fd.names
-        self.model_version = weights_path_fd.split(".fd_weights")[0][-1]
+        self.model_version_fd = weights_path_fd.split(".fd_weights")[0][-1]
         self.model_pe = YOLO(weights_path_pe) if weights_path_pe else None
+        self.model_version_pe=weights_path_pe.split(".pe_weights")[0][-1] if weights_path_pe else None
 
         # dataset info
         self.dataset = Path(dataset_path)
@@ -109,7 +120,7 @@ class EmbeddingBuilder:
 
         print("")
         print("Embedding builder initialized successfully".ljust(90, '-'))
-        print(f"Face detection model: {self.model_version} (YOLOv8)")
+        print(f"Face detection model: {self.model_version_fd} (YOLOv8)")
         print(f"Dataset: {self.dataset}")
         print(f"Dataset dimension: {self.dim_dataset}")
         print(f"Dataset labels: {self.classes_bs}")
@@ -326,10 +337,10 @@ class EmbeddingBuilder:
         print(
             "Saving features in .csv\nDataframe with columns [eye1, eye2, nose, mouth, head, label, image_path]. [eye1, eye2, mouth, label, head] are equal to (-1, -1) if were not detected:".ljust(
                 90, '-'))
-        self.features.to_csv(f"{str(self.dataset)}/model{self.model_version}_features{'_keypoints' if self.model_pe else ''}.csv", index=False)
+        self.features.to_csv(f"{str(self.dataset)}/model{self.model_version_fd}_features{'_keypoints' if self.model_pe else ''}{self.model_version_pe if self.model_version_pe else ''}.csv", index=False)
 
         print(
-            f"Features saved in '{str(self.dataset)}/model{self.model_version}_features{'_keypoints' if self.model_pe else ''}.csv'")
+            f"Features saved in '{str(self.dataset)}/model{self.model_version_fd}_features{'_keypoints' if self.model_pe else ''}{self.model_version_pe if self.model_version_pe else ''}.csv'")
         print("".ljust(90, '-'))
 
     def load_features(self):
@@ -338,7 +349,7 @@ class EmbeddingBuilder:
         """
         print("")
         print("Loading features from .csv".ljust(90, '-'))
-        self.features = pd.read_csv(f"{str(self.dataset)}/model{self.model_version}_features{'_keypoints' if self.model_pe else ''}.csv")
+        self.features = pd.read_csv(f"{str(self.dataset)}/model{self.model_version_fd}_features{'_keypoints' if self.model_pe else ''}{self.model_version_pe if self.model_version_pe else ''}.csv")
         exclude_cols = {"label", "image_path"}
         for col in self.features.columns:
             if col not in exclude_cols:
@@ -434,110 +445,6 @@ class EmbeddingBuilder:
         return geometric_info
 
     """     Embeddings types        """
-
-
-    def embedding_all_features(self):
-        X = []
-        features_names = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth", "x_eye1", "y_eye1", "x_eye2", "y_eye2",
-                          "x_nose", "y_nose", "x_mouth", "y_mouth", "eye_distance", "face_vertical_length",
-                          "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ratio"]
-
-        print("")
-        print("Creation of embeddings".ljust(90, '-'))
-        print(f"Features: {features_names}")
-
-        for ft in self.features.to_dict(orient='records'):
-            presence_flags = self.extract_flags(ft)
-            coordinates = self.extract_coordinates(ft)
-            geometric_info = self.extract_geometric_info(ft)
-
-            # final embedding
-            embedding = (
-                    presence_flags +
-                    coordinates +
-                    geometric_info
-            )
-            X.append(embedding)
-
-        print(f"{len(X)} embedding created")
-        print("".ljust(90, '-'))
-
-        return pd.DataFrame(X, columns=features_names)
-
-
-
-    def embedding_all_features_norm(self):
-        X = []
-        features_names = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth",
-                          "x_eye1", "y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth",
-                          "x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm",
-                          "x_mouth_norm", "y_mouth_norm",
-                          "eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
-                          "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
-
-        print("")
-        print("Creation of all features embedding".ljust(90, '-'))
-        print(f"Features: {features_names}")
-
-        for ft in self.features.to_dict(orient='records'):
-            presence_flags = self.extract_flags(ft)
-            eye1 = ft["eye1"]
-            eye2 = ft["eye2"]
-            nose = ft["nose"]
-            mouth = ft["mouth"]
-            head = ft["head"] if ft["head"] != (-1, -1) else -1
-
-            # coordinates keypoints
-            coordinates = list(eye1) + list(eye2) + list(nose) + list(mouth)
-
-            coordinates_norm = normalize(eye1, head) + normalize(eye2, head) + normalize(nose, head) + normalize(mouth,
-                                                                                                                 head)
-
-            # head h/w ration
-            head_ration = (head[3] / head[2]) if (head != -1) else -1
-
-            # distance between eyes
-            eye_distance = compute_distance(eye1, eye2) if (presence_flags[0] * presence_flags[1]) == 1 else -1
-            eye_distance_norm = (eye_distance / head[2]) if (eye_distance != -1 and head != -1) else -1
-
-            # vertical face length (nose to mouth)
-            face_vertical_length = compute_distance(nose, mouth) if (presence_flags[2] * presence_flags[
-                3]) == 1 else -1
-            face_vertical_length_norm = (face_vertical_length / head[3]) if (
-                    face_vertical_length != -1 and head != -1) else -1
-
-            # angle between eye1 – nose – mouth
-            face_angle_vertical = compute_face_angle(eye1, nose, mouth) if (presence_flags[0] * presence_flags[2] *
-                                                                            presence_flags[3]) == 1 else -1
-
-            # angle between eye1-nose-eye2
-            face_angle_horizontal = compute_face_angle(eye1, nose, eye2) if (presence_flags[0] * presence_flags[2] *
-                                                                             presence_flags[1]) == 1 else -1
-
-            # 16: symmetry (difference of eye distances to nose–mouth line)
-            symmetry_diff = 0.0
-            if (presence_flags[0] * presence_flags[1] * presence_flags[2] * presence_flags[3]) == 1:
-                try:
-                    eye1_to_axis = compute_point_to_line_distance(eye1, nose, mouth)
-                    eye2_to_axis = compute_point_to_line_distance(eye2, nose, mouth)
-                    symmetry_diff = abs(eye1_to_axis - eye2_to_axis)
-                except:
-                    pass
-
-            # final embedding
-            embedding = (
-                    presence_flags +
-                    coordinates +
-                    coordinates_norm +
-                    [eye_distance, eye_distance_norm, face_vertical_length, face_vertical_length_norm,
-                     face_angle_vertical, face_angle_horizontal, symmetry_diff, head_ration]
-            )
-            X.append(embedding)
-
-        print(f"FINISHED: {len(X)} embedding created")
-        return pd.DataFrame(X, columns=features_names)
-
-
     def create_embedding(self, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False, k_geometric_info=False):
         features_names = []
         if flags:
@@ -557,7 +464,7 @@ class EmbeddingBuilder:
                                 "x_left_knee", "y_left_knee","x_right_knee","y_right_knee", "x_left_ankle","y_left_ankle", "x_right_ankle","y_right_ankle"
                                 ]
         if k_geometric_info:
-            features_names += ["shoulders_dist", "shoulder_hip_right_dist", "shoulder_hip_left_dist", "nose_shoulder_right", "nose_shoulder_left", "shoulder_left_knee_right", "shoulder_right_knee_left", "knee_ankle_right", "knee_ankle_left"]
+            features_names += ["shoulders_dist", "shoulder_hip_right_dist", "shoulder_hip_left_dist", "nose_shoulder_right", "nose_shoulder_left", "shoulder_left_knee_right", "shoulder_right_knee_left", "knee_ankle_right", "knee_ankle_left","nose_hip_right", "nose_hip_left"]
 
             features_names+= ["elbow_shoulder_hip_right","elbow_shoulder_hip_left","shoulder_elbow_wrist_right","shoulder_elbow_wrist_left",
                               "shoulder_hip_knee_right","shoulder_hip_knee_left","hip_knee_ankle_right","hip_knee_ankle_left",
@@ -590,7 +497,9 @@ class EmbeddingBuilder:
 
         print(f"FINISHED: {len(X)} embedding created")
         print("".ljust(90, '-'))
-        return pd.DataFrame(X, columns=features_names)
+
+        embeddings = standard_scaler_embeddings(pd.DataFrame(X, columns=features_names))
+        return embeddings
 
     def normalize_wrt_body_center(self, ft):
         x_center = (ft["left_shoulder"][0] + ft["right_shoulder"][0]) / 2.0
@@ -618,22 +527,26 @@ class EmbeddingBuilder:
         shoulder_right_knee_left = compute_distance(ft["right_shoulder"], ft["left_knee"])
         knee_ankle_right = compute_distance(ft["right_knee"], ft["right_ankle"])
         knee_ankle_left = compute_distance(ft["left_knee"], ft["left_ankle"])
+        nose_hip_right = compute_distance(ft["nose"], ft["right_hip"])
+        nose_hip_left = compute_distance(ft["nose"], ft["left_hip"])
 
-        embedding = [shoulders_dist, shoulder_hip_right_dist, shoulder_hip_left_dist, nose_shoulder_right, nose_shoulder_left, shoulder_left_knee_right, shoulder_right_knee_left, knee_ankle_right, knee_ankle_left]
+
+        embedding = [shoulders_dist, shoulder_hip_right_dist, shoulder_hip_left_dist, nose_shoulder_right, nose_shoulder_left, shoulder_left_knee_right, shoulder_right_knee_left, knee_ankle_right, knee_ankle_left,nose_hip_right, nose_hip_left]
         return embedding
 
     def angles_between_keypoints(self, ft):
-        elbow_shoulder_hip_right = compute_face_angle(ft["right_elbow"], ft["right_shoulder"], ft["right_hip"])
-        elbow_shoulder_hip_left = compute_face_angle(ft["left_elbow"], ft["left_shoulder"], ft["left_hip"])
 
-        shoulder_elbow_wrist_right = compute_face_angle(ft["right_shoulder"],ft["right_elbow"], ft["right_wrist"])
-        shoulder_elbow_wrist_left = compute_face_angle(ft["left_shoulder"], ft["left_elbow"], ft["left_wrist"])
+        elbow_shoulder_hip_right =(compute_face_angle(ft["right_elbow"], ft["right_shoulder"], ft["right_hip"]) + 180) % 360 - 180
+        elbow_shoulder_hip_left = (compute_face_angle(ft["left_elbow"], ft["left_shoulder"], ft["left_hip"]) + 180) % 360 - 180
 
-        shoulder_hip_knee_right = compute_face_angle(ft["shoulder_right"],ft["hip_right"], ft["knee_right"])
-        shoulder_hip_knee_left = compute_face_angle(ft["shoulder_left"],ft["hip_left"], ft["knee_left"])
+        shoulder_elbow_wrist_right = (compute_face_angle(ft["right_shoulder"],ft["right_elbow"], ft["right_wrist"]) + 180) % 360 - 180
+        shoulder_elbow_wrist_left = (compute_face_angle(ft["left_shoulder"], ft["left_elbow"], ft["left_wrist"]) + 180) % 360 - 180
 
-        hip_knee_ankle_right =compute_face_angle(ft["right_hip"], ft["right_knee"], ft["right_ankle"])
-        hip_knee_ankle_left =compute_face_angle(ft["left_hip"], ft["left_knee"], ft["left_ankle"])
+        shoulder_hip_knee_right = (compute_face_angle(ft["right_shoulder"],ft["right_hip"], ft["right_knee"]) + 180) % 360 - 180
+        shoulder_hip_knee_left = (compute_face_angle(ft["left_shoulder"],ft["left_hip"], ft["left_knee"]) + 180) % 360 - 180
+
+        hip_knee_ankle_right = (compute_face_angle(ft["right_hip"], ft["right_knee"], ft["right_ankle"]) + 180) % 360 - 180
+        hip_knee_ankle_left = (compute_face_angle(ft["left_hip"], ft["left_knee"], ft["left_ankle"]) + 180) % 360 - 180
 
         if ft.get("right_shoulder", (-1, -1)) != (-1, -1) and ft.get("left_shoulder", (-1, -1)) != (-1, -1):
             angle_shoulders = np.arctan2(ft["right_shoulder"][1] - ft["left_shoulder"][1],
@@ -645,11 +558,12 @@ class EmbeddingBuilder:
         if ft.get("right_hip", (-1, -1)) != (-1, -1) and ft.get("left_hip", (-1, -1)) != (-1, -1):
             angle_hips = np.arctan2(ft["right_hip"][1] - ft["left_hip"][1], ft["right_hip"][0] - ft["left_hip"][0])
             hips_line_inclination = np.degrees(angle_hips)
+            hips_line_inclination = (hips_line_inclination + 180) % 360 - 180
         else:
             hips_line_inclination = -1
 
-        torsion = np.abs(
-            shoulders_line_inclination - hips_line_inclination) if shoulders_line_inclination != -1 and hips_line_inclination != -1 else -1
+        torsion = np.abs(shoulders_line_inclination - hips_line_inclination) if shoulders_line_inclination != -1 and hips_line_inclination != -1 else -1
+        torsion = (torsion + 180) % 360 - 180
 
         embedding = [elbow_shoulder_hip_right, elbow_shoulder_hip_left, shoulder_elbow_wrist_right,
                      shoulder_elbow_wrist_left, shoulder_hip_knee_right, shoulder_hip_knee_left,
@@ -657,7 +571,7 @@ class EmbeddingBuilder:
         return embedding
 
 
-    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False):
+    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False ):
         features_names = []
         if flags:
             features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
@@ -670,6 +584,19 @@ class EmbeddingBuilder:
             features_names += ["eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
                                "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
 
+        if k_positions_normalized:
+            features_names += [ "x_nose_k", "y_nose_k", "x_left_eye_k", "y_left_eye_k", "x_right_eye_k", "y_right_eye_k", "x_left_ear", "y_left_ear", "x_right_ear","y_right_ear",
+                                "x_left_shoulder","y_left_shoulder", "x_right_shoulder", "y_right_shoulder", "x_left_elbow","y_left_elbow", "x_right_elbow","y_right_elbow",
+                                "x_left_wrist","y_left_wrist", "x_right_wrist", "y_right_wrist", "x_left_hip","y_left_hip", "x_right_hip","y_right_hip",
+                                "x_left_knee", "y_left_knee","x_right_knee","y_right_knee", "x_left_ankle","y_left_ankle", "x_right_ankle","y_right_ankle"
+                                ]
+        if k_geometric_info:
+            features_names += ["shoulders_dist", "shoulder_hip_right_dist", "shoulder_hip_left_dist", "nose_shoulder_right", "nose_shoulder_left", "shoulder_left_knee_right", "shoulder_right_knee_left", "knee_ankle_right", "knee_ankle_left","nose_hip_right", "nose_hip_left"]
+
+            features_names+= ["elbow_shoulder_hip_right","elbow_shoulder_hip_left","shoulder_elbow_wrist_right","shoulder_elbow_wrist_left",
+                              "shoulder_hip_knee_right","shoulder_hip_knee_left","hip_knee_ankle_right","hip_knee_ankle_left",
+                              "shoulders_line_inclination","hips_line_inclination","torsion"]
+
         embedding = []
         if flags:
             embedding += self.extract_flags(ft)
@@ -679,6 +606,17 @@ class EmbeddingBuilder:
             embedding += self.extract_normalized_coordiates(ft)
         if geometric_info:
             embedding += self.extract_geometric_info(ft)
+        if k_positions_normalized:
+            embedding += self.normalize_wrt_body_center(ft)
+        if k_geometric_info:
+            embedding += self.distances_between_keypoints(ft)
+            embedding += self.angles_between_keypoints(ft)
 
         return np.array(embedding)
+
+
+
+
+
+
 

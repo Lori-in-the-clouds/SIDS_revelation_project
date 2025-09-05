@@ -1,3 +1,4 @@
+import joblib
 from sklearn.ensemble import RandomForestClassifier, BaggingClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, ConfusionMatrixDisplay
@@ -8,11 +9,19 @@ from xgboost import XGBClassifier
 from sklearn.model_selection import learning_curve
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import RandomizedSearchCV
+import os
+import pickle
+
+def get_model_name(clf_untrained):
+    # Ottieni il nome della classe
+    class_name = clf_untrained.__class__.__name__
+    return class_name
 
 class Classifier:
     def __init__(self, embeddings, y, classes_bs, figsize = (5.6, 4.2)):
         self.X = embeddings.values
         self.features = embeddings.columns
+        self.len_features = len(embeddings.columns)
 
         self.y = np.array(y)
         self.classes_bs = classes_bs
@@ -24,7 +33,9 @@ class Classifier:
         clf = LogisticRegression(
             penalty="l2",  # Ridge regularization
             C=0.1,  # smaller C = stronger regularization
-            solver="liblinear"
+            solver="liblinear",
+            max_iter=10000,
+            random_state=42
         )
         result = self.evaluation_pipeline(clf, verbose = verbose)
         return clf, result
@@ -68,7 +79,7 @@ class Classifier:
         results = self.evaluation_pipeline(clf,verbose = verbose)
         return clf,results
 
-    def evaluation_pipeline(self, clf_untrained, verbose=True, is_ensemble=False):
+    def evaluation_pipeline(self,clf_untrained, verbose=True, is_ensemble=False,optimized:bool=False,n_top_features=[10,25]):
         if verbose:
             print("".center(90, '-'))
             print("FIRST ANALYSIS".center(90, '-'))
@@ -76,6 +87,9 @@ class Classifier:
 
         clf_trained = clone(clf_untrained)
         clf_trained.fit(self.X_train, self.y_train)
+
+        project_dir = f"{os.getcwd().split('SIDS_revelation_project')[0]}SIDS_revelation_project/"
+        joblib.dump(clf_trained,f"{project_dir}classifiers/{get_model_name(clf_untrained)}_{self.len_features}_features{'_optimized' if optimized else ''}.pkl")
 
         importances, indices = None, None
         if not is_ensemble:
@@ -93,36 +107,38 @@ class Classifier:
             }
         }
 
-        if not is_ensemble and importances is not None and len(self.features) > 10:
-            if verbose:
-                print("".center(90, '-'))
-                print("TOP 10 FEATURES ANALYSIS".center(90, '-'))
-                print("".center(90, '-'))
-                plt.figure(figsize=self.figsize)
-                plt.title("Top 10 feature importances")
-                plt.bar(range(10), importances[indices[:10]])
-                plt.xticks(range(10), [f"{self.features[i]}" for i in indices[:10]], rotation=90)
-                plt.tight_layout()
-                plt.show()
+        for n_features in n_top_features:
+            if not is_ensemble and importances is not None and len(self.features) > n_features:
+                if verbose:
+                    print("".center(90, '-'))
+                    print(f"TOP {n_features} FEATURES ANALYSIS".center(90, '-'))
+                    print("".center(90, '-'))
+                    plt.figure(figsize=self.figsize)
+                    plt.title(f"Top {n_features} feature importances")
+                    plt.bar(range(n_features), importances[indices[:n_features]])
+                    plt.xticks(range(n_features), [f"{self.features[i]}" for i in indices[:n_features]], rotation=90)
+                    plt.tight_layout()
+                    plt.show()
 
-            top_k = 10
-            top_features_idx = indices[:top_k]
-            X_train_selected = self.X_train[:, top_features_idx]
-            X_test_selected = self.X_test[:, top_features_idx]
-            X_selected = self.X[:, top_features_idx]
-            clf_retrained = clone(clf_untrained)
-            clf_retrained.fit(X_train_selected, self.y_train)
+                top_k = n_features
+                top_features_idx = indices[:top_k]
+                X_train_selected = self.X_train[:, top_features_idx]
+                X_test_selected = self.X_test[:, top_features_idx]
+                X_selected = self.X[:, top_features_idx]
+                clf_retrained = clone(clf_untrained)
+                clf_retrained.fit(X_train_selected, self.y_train)
 
-            if verbose:
-                self.plot_learning_curve(clf_untrained, X_selected)
-                self.evaluate_metrics(clf_retrained, X_test_selected)
+                if verbose:
+                    self.plot_learning_curve(clf_retrained, X_selected)
+                    self.evaluate_metrics(clf_retrained, X_test_selected)
 
-            results['top_10_features'] = {
-                'model': clf_retrained,
-                'X': X_selected,
-                'y': self.y,
-                'top_features_idx': top_features_idx  # Added this to the dictionary
-            }
+                results[f"top_{n_features}_features"] = {
+                    'model': clf_retrained,
+                    'X': X_selected,
+                    'y': self.y,
+                    'top_features_idx': top_features_idx  # Added this to the dictionary
+                }
+                joblib.dump(clf_retrained,f"{project_dir}classifiers/{get_model_name(clf_untrained)}_{n_features}_features{'_optimized' if optimized else ''}.pkl")
 
         return results
 
@@ -216,7 +232,7 @@ class Classifier:
         if verbose:
             print("\nEvaluation of the best model on the test set:")
 
-        self.evaluation_pipeline(random_search.best_estimator_,verbose=verbose)
+        self.evaluation_pipeline(random_search.best_estimator_,verbose=verbose,optimized=True)
         return random_search.best_params_
 
 
@@ -283,7 +299,7 @@ class Classifier:
         """
         if verbose:
             print("".center(90, '-'))
-            print("ENSEMBLE MODEL EVALUATION ON TOP 10 FEATURES".center(90, '-'))
+            print(f"ENSEMBLE MODEL EVALUATION ON TOP {len(top_features_idx)} FEATURES".center(90, '-'))
             print("".center(90, '-'))
 
         # Clona l'istanza del classificatore per non modificare l'originale
@@ -300,7 +316,7 @@ class Classifier:
             self.evaluate_metrics(ensemble_clf_cloned, X_test_selected)
 
         return {
-            'top_10_features': {
+            f"top_{len(top_features_idx)}_features": {
                 'model': ensemble_clf_cloned,
                 'X': X_selected,
                 'y': self.y
