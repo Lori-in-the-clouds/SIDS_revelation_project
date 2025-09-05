@@ -12,6 +12,8 @@ import ast
 
 
 def compute_distance(point1, point2):
+    if point1 == (-1, -1) or point2 == (-1, -1):
+        return -1
     return np.linalg.norm(np.array(point1) - np.array(point2))
 
 
@@ -22,9 +24,12 @@ def compute_point_to_line_distance(point, line_start, line_end):
 
 
 def compute_face_angle(el1, nose, el2):
+    if el1 == (-1, -1) or nose == (-1, -1) or el2 == (-1, -1):
+        return -1
     # Computes the angle at nose between el1–nose–el2
     vector1 = np.array(el1) - np.array(nose)
     vector2 = np.array(el2) - np.array(nose)
+
     cos_theta = np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
     cos_theta = np.clip(cos_theta, -1.0, 1.0)
     angle_rad = np.arccos(cos_theta)
@@ -430,6 +435,7 @@ class EmbeddingBuilder:
 
     """     Embeddings types        """
 
+
     def embedding_all_features(self):
         X = []
         features_names = ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth", "x_eye1", "y_eye1", "x_eye2", "y_eye2",
@@ -457,6 +463,8 @@ class EmbeddingBuilder:
         print("".ljust(90, '-'))
 
         return pd.DataFrame(X, columns=features_names)
+
+
 
     def embedding_all_features_norm(self):
         X = []
@@ -529,6 +537,7 @@ class EmbeddingBuilder:
         print(f"FINISHED: {len(X)} embedding created")
         return pd.DataFrame(X, columns=features_names)
 
+
     def create_embedding(self, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False, k_geometric_info=False):
         features_names = []
         if flags:
@@ -542,17 +551,18 @@ class EmbeddingBuilder:
             features_names += ["eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
                                "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
         if k_positions_normalized:
-            features_names += [ "x_nose_k", "y_nose_k", "x_left_eye_k", "y_left_eye_k", "x_right_eye_k", "y_right_eye_k", "x_left_ear", "y_left_ear", "x_right_ear","y_right_ear"
+            features_names += [ "x_nose_k", "y_nose_k", "x_left_eye_k", "y_left_eye_k", "x_right_eye_k", "y_right_eye_k", "x_left_ear", "y_left_ear", "x_right_ear","y_right_ear",
                                 "x_left_shoulder","y_left_shoulder", "x_right_shoulder", "y_right_shoulder", "x_left_elbow","y_left_elbow", "x_right_elbow","y_right_elbow",
-                                "x_left_wrist","y_left_wrist", "x_right_wrist", "y_right_wrist", "x_left_hip","y_left_hip", "x_right_hip","y_right_hip",
                                 "x_left_wrist","y_left_wrist", "x_right_wrist", "y_right_wrist", "x_left_hip","y_left_hip", "x_right_hip","y_right_hip",
                                 "x_left_knee", "y_left_knee","x_right_knee","y_right_knee", "x_left_ankle","y_left_ankle", "x_right_ankle","y_right_ankle"
                                 ]
         if k_geometric_info:
             features_names += ["shoulders_dist", "shoulder_hip_right_dist", "shoulder_hip_left_dist", "nose_shoulder_right", "nose_shoulder_left", "shoulder_left_knee_right", "shoulder_right_knee_left", "knee_ankle_right", "knee_ankle_left"]
+
             features_names+= ["elbow_shoulder_hip_right","elbow_shoulder_hip_left","shoulder_elbow_wrist_right","shoulder_elbow_wrist_left",
                               "shoulder_hip_knee_right","shoulder_hip_knee_left","hip_knee_ankle_right","hip_knee_ankle_left",
                               "shoulders_line_inclination","hips_line_inclination","torsion"]
+
 
         X = []
 
@@ -571,10 +581,10 @@ class EmbeddingBuilder:
             if geometric_info:
                 embedding += self.extract_geometric_info(ft)
             if k_positions_normalized:
-                embedding+= self.normalize_wrt_body_center(ft)
+                embedding += self.normalize_wrt_body_center(ft)
             if k_geometric_info:
-                embedding+= self.distances_between_keypoints(ft)
-
+                embedding += self.distances_between_keypoints(ft)
+                embedding += self.angles_between_keypoints(ft)
 
             X.append(embedding)
 
@@ -613,30 +623,37 @@ class EmbeddingBuilder:
         return embedding
 
     def angles_between_keypoints(self, ft):
-        elbow_shoulder_hip_right = compute_face_angle(ft["elbow_right"], ft["shoulder_right"], ft["hip_right"])
-        elbow_shoulder_hip_left = compute_face_angle(ft["elbow_left"], ft["shoulder_left"], ft["hip_left"])
+        elbow_shoulder_hip_right = compute_face_angle(ft["right_elbow"], ft["right_shoulder"], ft["right_hip"])
+        elbow_shoulder_hip_left = compute_face_angle(ft["left_elbow"], ft["left_shoulder"], ft["left_hip"])
 
-        shoulder_elbow_wrist_right = compute_face_angle(ft["shoulder_right"],ft["elbow_right"], ft["writst_right"])
-        shoulder_elbow_wrist_left = compute_face_angle(ft["shoulder_left"], ft["elbow_left"], ft["writst_left"])
+        shoulder_elbow_wrist_right = compute_face_angle(ft["right_shoulder"],ft["right_elbow"], ft["right_wrist"])
+        shoulder_elbow_wrist_left = compute_face_angle(ft["left_shoulder"], ft["left_elbow"], ft["left_wrist"])
 
         shoulder_hip_knee_right = compute_face_angle(ft["shoulder_right"],ft["hip_right"], ft["knee_right"])
         shoulder_hip_knee_left = compute_face_angle(ft["shoulder_left"],ft["hip_left"], ft["knee_left"])
 
-        hip_knee_ankle_right =compute_face_angle(ft["hip_right"], ft["knee_right"], ft["ankle_right"])
-        hip_knee_ankle_left =compute_face_angle(ft["hip_left"], ft["knee_left"], ft["ankle_left"])
+        hip_knee_ankle_right =compute_face_angle(ft["right_hip"], ft["right_knee"], ft["right_ankle"])
+        hip_knee_ankle_left =compute_face_angle(ft["left_hip"], ft["left_knee"], ft["left_ankle"])
 
+        if ft.get("right_shoulder", (-1, -1)) != (-1, -1) and ft.get("left_shoulder", (-1, -1)) != (-1, -1):
+            angle_shoulders = np.arctan2(ft["right_shoulder"][1] - ft["left_shoulder"][1],
+                                         ft["right_shoulder"][0] - ft["left_shoulder"][0])
+            shoulders_line_inclination = np.degrees(angle_shoulders)
+        else:
+            shoulders_line_inclination = -1#
 
-        angle_shoulders = np.arctan2(ft["right_shoulder"][1] - ft["left_shoulder"][1], ft["right_shoulder"][0] - ft["left_shoulder"][0])
-        shoulders_line_inclination=np.degrees(angle_shoulders)
+        if ft.get("right_hip", (-1, -1)) != (-1, -1) and ft.get("left_hip", (-1, -1)) != (-1, -1):
+            angle_hips = np.arctan2(ft["right_hip"][1] - ft["left_hip"][1], ft["right_hip"][0] - ft["left_hip"][0])
+            hips_line_inclination = np.degrees(angle_hips)
+        else:
+            hips_line_inclination = -1
 
-        angle_hips = np.arctan2(ft["right_hip"][1] - ft["left_hip"][1],ft["right_hip"][0] - ft["left_hip"][0])
-        hips_line_inclination=np.degrees(angle_hips)
+        torsion = np.abs(
+            shoulders_line_inclination - hips_line_inclination) if shoulders_line_inclination != -1 and hips_line_inclination != -1 else -1
 
-        torsion = np.abs(angle_shoulders-angle_hips)
-
-        embedding = [elbow_shoulder_hip_right,elbow_shoulder_hip_left,shoulder_elbow_wrist_right,
-                     shoulder_elbow_wrist_left,shoulder_hip_knee_right,shoulder_hip_knee_left,
-                     hip_knee_ankle_right,hip_knee_ankle_left,shoulders_line_inclination,hips_line_inclination,torsion]
+        embedding = [elbow_shoulder_hip_right, elbow_shoulder_hip_left, shoulder_elbow_wrist_right,
+                     shoulder_elbow_wrist_left, shoulder_hip_knee_right, shoulder_hip_knee_left,
+                     hip_knee_ankle_right, hip_knee_ankle_left,shoulders_line_inclination,hips_line_inclination,torsion]
         return embedding
 
 
