@@ -11,6 +11,7 @@ def draw_keypoints_on_frame(img, keypoints_list, number: bool = False, thickness
     skeleton = [(0, 6),(0, 5),(6,8),(0,1),(0,2),(6,5),(6,4),(5,3),(4,2),(3,1),
                 (6,12),(5,7),(5,11),(7,9),(8,10),(12,11),(12,14),(14,16),(11,13),(13,15)]
 
+
     # Disegna punti
     for idx, kp in enumerate(keypoints_list):
         if kp is not None:
@@ -31,7 +32,7 @@ def draw_keypoints_on_frame(img, keypoints_list, number: bool = False, thickness
             if (start == 6 and end == 5) or (start == 6 and end == 12) or (start == 5 and end == 11) or (start == 12 and end == 11):
                 color = (255, 0, 255)
             elif (start == 12 and end == 14) or (start == 11 and end == 13) or (start == 14 and end == 16) or (start == 13 and end == 15):
-                color = (0, 0, 255)
+                color = (0, 165, 255)
             elif (start == 6 and end == 8) or (start == 8 and end == 10) or (start == 5 and end == 7) or (start == 7 and end == 9):
                 color = (0, 255, 0)
             else:

@@ -10,7 +10,6 @@ import pandas as pd
 import ast
 from sklearn.preprocessing import StandardScaler
 
-
 def standard_scaler_embeddings(embeddings: DataFrame):
     embeddings_df = embeddings
     scaler = StandardScaler()

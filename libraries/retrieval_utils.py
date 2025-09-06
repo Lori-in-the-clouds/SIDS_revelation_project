@@ -7,7 +7,6 @@ import os
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-from sklearn.metrics import silhouette_score
 from sklearn.metrics import silhouette_samples
 
 from matplotlib.lines import Line2D
