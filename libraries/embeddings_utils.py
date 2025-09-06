@@ -54,6 +54,7 @@ def normalize(coordinates, head):
         return [a / b for a, b in zip(coordinates, head_xy)]
 
 
+
 ''' EMBEDDING BUILDER CLASS '''
 
 
@@ -367,12 +368,11 @@ class EmbeddingBuilder:
 
     def extract_flags(self, ft: dict):
         presence_flags = [
-            int(ft["eye1"] != (-1, -1)),
-            int(ft["eye2"] != (-1, -1)),
-            int(ft["nose"] != (-1, -1)),
-            int(ft["mouth"] != (-1, -1)),
+            int(ft.get("eye1", (-1, -1)) != (-1, -1)),
+            int(ft.get("eye2", (-1, -1)) != (-1, -1)),
+            int(ft.get("nose", (-1, -1)) != (-1, -1)),
+            int(ft.get("mouth", (-1, -1)) != (-1, -1)),
         ]
-
         return presence_flags
 
     def extract_coordinates(self, ft: dict):
@@ -502,33 +502,49 @@ class EmbeddingBuilder:
         return embeddings
 
     def normalize_wrt_body_center(self, ft):
+
+        kpts = ["nose_k", "left_eye_k", "right_eye_k", "left_ear", "right_ear",
+                "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+                "left_wrist", "right_wrist", "left_hip", "right_hip",
+                "left_knee", "right_knee", "left_ankle", "right_ankle"
+                ]
+
+        if "left_shoulder" not in ft or "right_shoulder" not in ft or ft["left_shoulder"] == (-1, -1) or ft["right_shoulder"] == (-1, -1):
+            return [0.0] * (len(kpts) * 2)
+
         x_center = (ft["left_shoulder"][0] + ft["right_shoulder"][0]) / 2.0
         y_center = (ft["left_shoulder"][1] + ft["right_shoulder"][1]) / 2.0
 
-        kpts=["nose_k", "left_eye_k", "right_eye_k", "left_ear", "right_ear",
-         "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
-         "left_wrist", "right_wrist", "left_hip", "right_hip",
-         "left_knee", "right_knee", "left_ankle", "right_ankle"
-         ]
         embedding = []
 
         for el in kpts:
-            embedding.append(ft[el][0]-x_center)
-            embedding.append(ft[el][1]-y_center)
+            if el in ft and ft[el] != (-1, -1):
+                embedding.append(ft[el][0]-x_center)
+                embedding.append(ft[el][1]-y_center)
+            else:
+                embedding.extend([0.0, 0.0])
         return embedding
 
+
+
     def distances_between_keypoints(self,ft):
-        shoulders_dist= compute_distance(ft["left_shoulder"], ft["right_shoulder"])
-        shoulder_hip_right_dist = compute_distance(ft["right_shoulder"], ft["right_hip"])
-        shoulder_hip_left_dist = compute_distance(ft["left_shoulder"], ft["left_hip"])
-        nose_shoulder_right=compute_distance(ft["nose"], ft["right_shoulder"])
-        nose_shoulder_left=compute_distance(ft["nose"], ft["left_shoulder"])
-        shoulder_left_knee_right = compute_distance(ft["left_shoulder"], ft["right_knee"])
-        shoulder_right_knee_left = compute_distance(ft["right_shoulder"], ft["left_knee"])
-        knee_ankle_right = compute_distance(ft["right_knee"], ft["right_ankle"])
-        knee_ankle_left = compute_distance(ft["left_knee"], ft["left_ankle"])
-        nose_hip_right = compute_distance(ft["nose"], ft["right_hip"])
-        nose_hip_left = compute_distance(ft["nose"], ft["left_hip"])
+
+        def safe_distance(a, b):
+            if a not in ft or b not in ft or ft[a] == (-1, -1) or ft[b] == (-1, -1):
+                return 0.0
+            return compute_distance(ft[a], ft[b])
+
+        shoulders_dist= safe_distance(ft["left_shoulder"], ft["right_shoulder"])
+        shoulder_hip_right_dist = safe_distance(ft["right_shoulder"], ft["right_hip"])
+        shoulder_hip_left_dist = safe_distance(ft["left_shoulder"], ft["left_hip"])
+        nose_shoulder_right= safe_distance(ft["nose"], ft["right_shoulder"])
+        nose_shoulder_left= safe_distance(ft["nose"], ft["left_shoulder"])
+        shoulder_left_knee_right = safe_distance(ft["left_shoulder"], ft["right_knee"])
+        shoulder_right_knee_left = safe_distance(ft["right_shoulder"], ft["left_knee"])
+        knee_ankle_right = safe_distance(ft["right_knee"], ft["right_ankle"])
+        knee_ankle_left = safe_distance(ft["left_knee"], ft["left_ankle"])
+        nose_hip_right = safe_distance(ft["nose"], ft["right_hip"])
+        nose_hip_left = safe_distance(ft["nose"], ft["left_hip"])
 
 
         embedding = [shoulders_dist, shoulder_hip_right_dist, shoulder_hip_left_dist, nose_shoulder_right, nose_shoulder_left, shoulder_left_knee_right, shoulder_right_knee_left, knee_ankle_right, knee_ankle_left,nose_hip_right, nose_hip_left]

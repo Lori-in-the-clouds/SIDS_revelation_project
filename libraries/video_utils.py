@@ -5,6 +5,42 @@ from collections import deque
 import matplotlib.pyplot as plt
 
 
+def draw_keypoints_on_frame(img, keypoints_list, number: bool = False, thickness_line=2, thickness_point=3):
+    h, w = img.shape[:2]
+
+    skeleton = [(0, 6),(0, 5),(6,8),(0,1),(0,2),(6,5),(6,4),(5,3),(4,2),(3,1),
+                (6,12),(5,7),(5,11),(7,9),(8,10),(12,11),(12,14),(14,16),(11,13),(13,15)]
+
+    # Disegna punti
+    for idx, kp in enumerate(keypoints_list):
+        if kp is not None:
+            x_px = int(kp[0] * w)
+            y_px = int(kp[1] * h)
+            cv2.circle(img, (x_px, y_px), thickness_point, (0, 0, 255), -1)
+            if number:
+                cv2.putText(img, str(idx), (x_px + 3, y_px - 3),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+    # Disegna linee scheletro
+    for start, end in skeleton:
+        if keypoints_list[start] is not None and keypoints_list[end] is not None:
+            x1, y1 = int(keypoints_list[start][0] * w), int(keypoints_list[start][1] * h)
+            x2, y2 = int(keypoints_list[end][0] * w), int(keypoints_list[end][1] * h)
+
+            # colori scheletro
+            if (start == 6 and end == 5) or (start == 6 and end == 12) or (start == 5 and end == 11) or (start == 12 and end == 11):
+                color = (255, 0, 255)
+            elif (start == 12 and end == 14) or (start == 11 and end == 13) or (start == 14 and end == 16) or (start == 13 and end == 15):
+                color = (0, 0, 255)
+            elif (start == 6 and end == 8) or (start == 8 and end == 10) or (start == 5 and end == 7) or (start == 7 and end == 9):
+                color = (0, 255, 0)
+            else:
+                color = (0, 255, 255)
+
+            cv2.line(img, (x1, y1), (x2, y2), color, thickness_line)
+
+    return img
+
 # ===============================
 # CLAHE (Contrast Limited Adaptive Histogram Equalization)
 # ===============================
@@ -110,16 +146,32 @@ def process_video(input_video_path: str,
         "eye": (255, 165, 0),       # orange
         "nose": (127, 255, 212),    # aqua green
         "mouth": (255, 0, 255),     # fuchsia
-        "head": (0, 0, 255)         # red
+        "head": (0, 50, 200),     # blue
+        "left_shoulder": (0, 0, 255), # red
+        "right_shoulder": (0, 0, 255),
+        "left_hip": (0, 0, 255),
+        "right_hip": (0, 0, 255),
+        "left_knee": (0, 0, 255),
+        "right_knee": (0, 0, 255),
+        "left_ankle": (0, 0, 255),
+        "right_ankle": (0, 0, 255)
     }
 
+
+
+
     # --- Variabili condivise ---
-    required_kpts = {"eye", "head", "nose", "mouth", "eye1", "eye2"}
+    required_kpts = {  "eye", "head", "nose", "mouth",
+                        "eye1", "eye2","left_shoulder", "right_shoulder",
+                        "left_hip", "right_hip",
+                        "left_knee", "right_knee",
+                        "left_ankle", "right_ankle"}
     history = deque(maxlen=25)
     stable_success_counter = 0
     min_stable_success_frames = 100
     level = 0  # per i filtri
     boxes_per_frame = []
+    keypoints_per_frame = []
 
     while True:
         ret, frame = cap.read()
@@ -133,17 +185,42 @@ def process_video(input_video_path: str,
                 print(f"🔧 Applying filter level {level}")
 
         # --- Prediction YOLO ---
-        results = builder.model_fd(frame, conf=0.3, verbose=False)[0]
-        kpt = builder.features_extractor(results.boxes)
+        results1 = builder.model_fd(frame, conf=0.3, verbose=False)[0]
+        results2 = builder.model_pe(frame, conf=0.3, verbose=False)[0]
+
+        kpt_fe = builder.features_extractor(results1.boxes)
+        kpt_pe = builder.features_extractor_keypoints(results2)
+
+        kpt = {**kpt_fe, **kpt_pe}
+
+        expected_kpts = [
+            "eye1", "eye2", "nose", "mouth", "head",
+            "left_shoulder", "right_shoulder",
+            "left_elbow", "right_elbow",
+            "left_wrist", "right_wrist",
+            "left_hip", "right_hip",
+            "left_knee", "right_knee",
+            "left_ankle", "right_ankle"
+        ]
+
+        # Garantisco che tutte le chiavi ci siano
+        for k in expected_kpts:
+            if k not in kpt:
+                kpt[k] = (-1, -1)
 
         # Conta box validi
+
         count_valid_boxes = sum(1 for k in required_kpts if k in kpt and kpt[k] != (-1, -1))
         boxes_per_frame.append(count_valid_boxes)
 
+        # Conta keypoints validi
+        num_valid_keypoints = sum(1 for k in expected_kpts if kpt[k] != (-1, -1))
+        keypoints_per_frame.append(num_valid_keypoints)
+
         # --- Success rate (solo se use_filters=True) ---
         if use_filters:
-            has_any_keypoint = any(k in kpt and kpt[k] != (-1, -1) and k!="head" for k in required_kpts)
-            #has_any_keypoint = any(k in kpt and kpt[k] != (-1, -1) for k in required_kpts)
+            critical_kpts = {"eye", "eye1", "eye2", "nose"}
+            has_any_keypoint = any(k in kpt and kpt[k] != (-1, -1) for k in critical_kpts)
             history.append(1 if has_any_keypoint else 0)
             success_rate = sum(history) / len(history) if history else 0
 
@@ -165,11 +242,24 @@ def process_video(input_video_path: str,
                 stable_success_counter = 0
 
         # --- Disegno bounding box ---
-        draw_bounding_boxes(frame, results, builder, keypoint_colors, show_all_boxes, show_confidences)
+        draw_bounding_boxes(frame, results1, builder, keypoint_colors, show_all_boxes, show_confidences)
+
+        # Converti kpt dict in lista ordinata di 17 keypoints (None se mancanti)
+        keypoints_order = [
+            "nose_k", "left_eye_k", "right_eye_k", "left_ear", "right_ear",
+            "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+            "left_wrist", "right_wrist", "left_hip", "right_hip",
+            "left_knee", "right_knee", "left_ankle", "right_ankle"
+        ]
+
+        keypoints_list = [kpt.get(k, None) if kpt.get(k, (-1, -1)) != (-1, -1) else None for k in keypoints_order]
+
+        frame = draw_keypoints_on_frame(frame, keypoints_list, number=False)
 
         # --- Feature extraction & prediction ---
         train = builder.create_embedding_for_video(
-            kpt, flags=True, positions=True, geometric_info=True, positions_normalized=True
+            kpt, flags=True, positions=True, geometric_info=True, positions_normalized=True,
+            k_positions_normalized=True, k_geometric_info=True,
         ).reshape(1, -1)
 
         pred = clf.predict(train)[0]
@@ -180,9 +270,9 @@ def process_video(input_video_path: str,
             prob = 1.0
 
         if use_filters:
-            label_text = f"{'Safe' if pred == 1 else 'In Danger'} ({prob * 100:.1f}%)"
+            label_text = f"{'Safe' if pred == 0 else 'In Danger'} ({prob * 100:.1f}%)"
         else:
-            label_text = f"{'Safe' if pred == 1 else 'In Danger'} ({prob * 100:.1f}%)"
+            label_text = f"{'Safe' if pred == 0 else 'In Danger'} ({prob * 100:.1f}%)"
 
         color = (0, 255, 0) if (("Safe" in label_text) or ("Safe" in label_text)) else (0, 0, 255)
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
@@ -197,7 +287,7 @@ def process_video(input_video_path: str,
     out.release()
     cv2.destroyAllWindows()
 
-    return boxes_per_frame
+    return boxes_per_frame + keypoints_per_frame
 
 # ===============================
 # Stats & Visualization Helpers
