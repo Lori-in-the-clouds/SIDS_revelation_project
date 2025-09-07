@@ -515,8 +515,9 @@ class EmbeddingBuilder:
 
         for el in kpts:
             if el in ft and ft[el] != (-1, -1):
-                embedding.append(ft[el][0]-x_center)
-                embedding.append(ft[el][1]-y_center)
+                ft[el] = (ft[el][0]-x_center, ft[el][1]-y_center) if ft[el] != (-1, -1) else ft[el]
+                embedding.append(ft[el][0])
+                embedding.append(ft[el][1])
             else:
                 embedding.extend([0.0, 0.0])
         return embedding
