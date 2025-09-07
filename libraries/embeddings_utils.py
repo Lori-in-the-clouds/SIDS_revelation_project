@@ -19,7 +19,6 @@ def standard_scaler_embeddings(embeddings: DataFrame):
 
 ''' GEOMETRIC FUNCTIONS '''
 
-
 def compute_distance(point1, point2):
     if point1 == (-1, -1) or point2 == (-1, -1):
         return -1
@@ -55,8 +54,6 @@ def normalize(coordinates, head):
 
 
 ''' EMBEDDING BUILDER CLASS '''
-
-
 class EmbeddingBuilder:
     def __init__(self, weights_path_fd: str, dataset_path: str, mode: str, weights_path_pe: str=None):
         """
@@ -529,9 +526,9 @@ class EmbeddingBuilder:
     def distances_between_keypoints(self,ft):
 
         def safe_distance(a, b):
-            if a not in ft or b not in ft or ft[a] == (-1, -1) or ft[b] == (-1, -1):
+            if a == (-1, -1) or b == (-1, -1):
                 return 0.0
-            return compute_distance(ft[a], ft[b])
+            return compute_distance(a, b)
 
         shoulders_dist= safe_distance(ft["left_shoulder"], ft["right_shoulder"])
         shoulder_hip_right_dist = safe_distance(ft["right_shoulder"], ft["right_hip"])
