@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import umap
+from numpy.linalg import pinv, inv
+from sklearn.covariance import LedoitWolf
 from sklearn.neighbors import NearestNeighbors
 import matplotlib.image as mpimg
 import os
@@ -50,7 +52,7 @@ class ImageRetrieval:
         epsilon = 1e-10
         return embeddings / (np.linalg.norm(embeddings, axis=1, keepdims=True) + epsilon)
 
-    def build_index(self, metric='euclidean', k=None):
+    def build_index(self, metric='euclidean'):
         """
         Build the nearest neighbor index on normalized embeddings.
 
@@ -58,63 +60,36 @@ class ImageRetrieval:
             metric (str): Distance metric to use ('euclidean' or 'cosine').
             k (int): Number of neighbors to consider (k+1 to account for self).
         """
-        if k == None:
-            k = len(self.embeddings_norm)
 
+        k = len(self.embeddings_norm)-1
         self.nbrs = NearestNeighbors(n_neighbors=k + 1, metric=metric).fit(self.embeddings_norm)
 
-    def retrieve_similar(self, idx_query, k=5, verbose=True, external_embeddings=False, external_embd=None):
-        """
-        Retrieve top-k similar images to the query image indexed by idx_query.
+    def retrieve_similar(self, idx_query, k=5, verbose=True):
+        if self.nbrs is None:
+            print("ERROR: build indexes and the re-run this function")
+            return None, None
 
-        Parameters:
-            idx_query (int): Index of the query image in the dataset.
-            k (int): Number of similar images to retrieve.
-            verbose (bool): Whether to print detailed results.
+        distances, indices = self.nbrs.kneighbors(self.embeddings_norm[idx_query].reshape(1, -1))
 
-        Returns:
-            tuple: (distances, image_paths_similar)
-                distances: array of distances to retrieved images
-                image_paths_similar: list of image file paths retrieved
-        """
-        embeddings = self.embeddings
-        labels = self.df['label'].to_numpy()
-        image_paths = self.df['image_path'].to_list()
+        # escludi la query stessa
+        distances = distances[0][1:]
+        indices = indices[0][1:]
 
-        embeddings_norm = self.embeddings_norm
-
-        if external_embeddings:
-            nbrs = self.build_index(metric='euclidean', k=k - 1)
-        else:
-            nbrs = self.build_index(metric='euclidean', k=k)
-
-        if external_embeddings == False:
-            distances, indices = self.nbrs.kneighbors(embeddings_norm[idx_query].reshape(1, -1))
-        else:
-            distances, indices = self.nbrs.kneighbors(self.normalize_embeddings(external_embd).reshape(1, -1))
-
-        if external_embeddings == False:
-            indices = indices[0][1:]  # escludi se stesso
-            distances = distances[0][1:]
-        else:
-            indices = indices[0]
-            distances = distances[0]
+        # prendi solo i primi k
+        distances = distances[:k]
+        indices = indices[:k]
 
         if verbose:
-            print(f"Query image: {image_paths[idx_query]} (label: {labels[idx_query]})")
+            print(f"Query image: {self.df['image_path'].iloc[idx_query]} (label: {self.labels[idx_query]})")
             print(f"Top {k} similar images:")
+            for rank, i in enumerate(indices, start=1):
+                print(
+                    f"{rank}. {self.df['image_path'].iloc[i]} - label: {self.labels[i]} - distance: {distances[rank - 1]:.4f}")
 
-        image_paths_similar = []
-
-        for rank, i in enumerate(indices, start=1):
-            if verbose:
-                print(f"{rank}. {image_paths[i]} - label: {labels[i]} - distance: {distances[0][rank]:.4f}")
-            image_paths_similar.append(image_paths[i])
-
+        image_paths_similar = [self.df['image_path'].iloc[i] for i in indices]
         return distances, image_paths_similar
 
-    def show_images(self, image_paths_similar, n_cols=5, figsize=(15, 5)):
-
+    def show_images(self, image_paths_similar, n_cols=5, figsize=(10, 3)):
         os.chdir(self.image_dataset_path)
 
         n_images = len(image_paths_similar)
@@ -321,6 +296,28 @@ class ImageRetrieval:
         plt.title(f"Distribuzione LDA degli embedding ({self.embeddings.shape[1]}D → 1D)")
         plt.legend()
         plt.show()
+
+    from numpy.linalg import inv, pinv
+    from sklearn.covariance import LedoitWolf
+
+    def build_mahalanobis_index(self, pca_dim=None, use_pinv=False):
+        """
+        Costruisce l'indice NearestNeighbors usando Mahalanobis distance.
+        """
+        Xc = self.embeddings_norm - self.embeddings_norm.mean(axis=0, keepdims=True)
+
+        if pca_dim is not None:
+            from sklearn.decomposition import PCA
+            Xc = PCA(n_components=pca_dim).fit_transform(Xc)
+
+        cov = LedoitWolf().fit(Xc).covariance_
+        VI = pinv(cov) if use_pinv else inv(cov)
+
+        self.nbrs = NearestNeighbors(metric='mahalanobis', metric_params={'VI': VI})
+        self.nbrs.fit(Xc)
+
+        self.mahalanobis_VI = VI  # salva per eventuale uso futuro
+        self.embeddings_maha = Xc
 
     def report(self, metric="euclidean"):
         self.build_index(metric, k= len(self.embeddings_norm))
