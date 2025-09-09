@@ -10,7 +10,15 @@ from sklearn.model_selection import learning_curve
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import RandomizedSearchCV
 import os
+import random
 import pickle
+import torch
+from torch.utils.data import DataLoader, Dataset
+from pytorch_metric_learning.losses import SupConLoss
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, StratifiedKFold
+import pandas as pd
+
 
 def get_model_name(clf_untrained):
     # Ottieni il nome della classe
@@ -25,7 +33,6 @@ class Classifier:
 
         self.y = np.array(y)
         self.classes_bs = classes_bs
-
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42)
 
         self.figsize = figsize
@@ -86,7 +93,10 @@ class Classifier:
             print("".center(90, '-'))
 
         clf_trained = clone(clf_untrained)
+
+
         clf_trained.fit(self.X_train, self.y_train)
+
 
         project_dir = f"{os.getcwd().split('SIDS_revelation_project')[0]}SIDS_revelation_project/"
         joblib.dump(clf_trained,f"{project_dir}classifiers/{get_model_name(clf_untrained)}_{self.len_features}_features{'_optimized' if optimized else ''}.pkl")
@@ -96,7 +106,7 @@ class Classifier:
             importances, indices = self.plot_feature_importance(clf_trained, verbose=verbose)
 
         if verbose:
-            self.plot_learning_curve(clf_untrained)
+            self.plot_learning_curve(clf_trained)
             self.evaluate_metrics(clf_trained)
 
         results = {
@@ -128,6 +138,7 @@ class Classifier:
                 clf_retrained = clone(clf_untrained)
                 clf_retrained.fit(X_train_selected, self.y_train)
 
+
                 if verbose:
                     self.plot_learning_curve(clf_retrained, X_selected)
                     self.evaluate_metrics(clf_retrained, X_test_selected)
@@ -141,6 +152,40 @@ class Classifier:
                 joblib.dump(clf_retrained,f"{project_dir}classifiers/{get_model_name(clf_untrained)}_{n_features}_features{'_optimized' if optimized else ''}.pkl")
 
         return results
+
+    def evaluation_pipeline_with_cv(self, clf_untrained, n_splits=5, verbose=True, is_ensemble=False, optimized=False,
+                                    n_top_features=[10, 25]):
+        if verbose:
+            print("".center(90, '-'))
+            print("K-FOLD CROSS-VALIDATION ANALYSIS".center(90, '-'))
+            print("".center(90, '-'))
+
+        # Inizializza StratifiedKFold per i problemi di classificazione
+        skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+
+        # Liste per salvare i risultati di ogni fold
+        accuracies = []
+
+        # Loop su ogni fold
+        for train_index, test_index in skf.split(self.X, self.y):
+            X_train_fold, X_test_fold = self.X[train_index], self.X[test_index]
+            y_train_fold, y_test_fold = self.y[train_index], self.y[test_index]
+
+            clf_trained_fold = clone(clf_untrained)
+            clf_trained_fold.fit(X_train_fold, y_train_fold)
+
+            y_pred_fold = clf_trained_fold.predict(X_test_fold)
+            fold_accuracy = accuracy_score(y_test_fold, y_pred_fold)
+            accuracies.append(fold_accuracy)
+
+        avg_accuracy = np.mean(accuracies)
+        if verbose:
+            print(f"Accuracy for each fold: {accuracies}")
+            print(f"Average cross-validation accuracy: {avg_accuracy:.4f}")
+
+
+        return avg_accuracy
+
 
     def evaluate_metrics(self, clf, X_test_selected = None):
         X_test = X_test_selected if X_test_selected is not None else self.X_test
@@ -204,7 +249,9 @@ class Classifier:
             plt.ylabel("Accuracy")
             plt.legend()
             plt.title("Learning Curve")
+            plt.ylim(0, 1)
             plt.show()
+
 
         return train_sizes,train_scores,test_scores,train_mean,test_mean
 
@@ -322,6 +369,313 @@ class Classifier:
                 'y': self.y
             }
         }
+
+    def ablation_analysis(self, model, feature_groups=None, verbose=True, plot=True,plot_columns=30):
+        """
+        Esegue ablation test completo: singolo e a gruppi di feature, con report e grafico.
+
+        Args:
+            model: modello sklearn-like non addestrato
+            feature_groups: dict nome_gruppo -> lista_feature_da_rimuovere
+            verbose: stampa risultati
+            plot: se True genera bar chart comparativo
+
+        Returns:
+            results: dict con accuracy per ogni feature e gruppo
+        """
+        results = {}
+
+        # --- 1. Accuracy con tutte le feature ---
+        clf_all = clone(model)
+        clf_all.fit(self.X_train, self.y_train)
+
+        y_pred_all = clf_all.predict(self.X_test)
+        acc_all = accuracy_score(self.y_test, y_pred_all)
+        results["all_features"] = acc_all
+        if verbose:
+            print(f"All features accuracy: {acc_all:.4f}")
+
+        # --- 2. Ablation singola ---
+        single_results = {}
+        for i, feature in enumerate(self.features):
+            X_train_sub = np.delete(self.X_train, i, axis=1)
+            X_test_sub = np.delete(self.X_test, i, axis=1)
+
+            clf_sub = clone(model)
+            clf_sub.fit(X_train_sub, self.y_train)
+
+            y_pred_sub = clf_sub.predict(X_test_sub)
+            acc_sub = accuracy_score(self.y_test, y_pred_sub)
+            single_results[feature] = acc_sub
+
+            if verbose:
+                print(f"Removed feature '{feature}': accuracy = {acc_sub:.4f}")
+
+        results["single_features"] = single_results
+
+        # --- 3. Ablation per gruppi ---
+        group_results = {}
+        if feature_groups:
+            for group_name, group_features in feature_groups.items():
+                indices = [i for i, f in enumerate(self.features) if f in group_features]
+                X_train_sub = np.delete(self.X_train, indices, axis=1)
+                X_test_sub = np.delete(self.X_test, indices, axis=1)
+
+                clf_sub = clone(model)
+
+                clf_sub.fit(X_train_sub, self.y_train)
+                y_pred_sub = clf_sub.predict(X_test_sub)
+                acc_sub = accuracy_score(self.y_test, y_pred_sub)
+                group_results[group_name] = acc_sub
+
+                if verbose:
+                    print(f"Removed group '{group_name}': accuracy = {acc_sub:.4f}")
+
+        results["groups"] = group_results
+
+        # --- 4. Grafico comparativo ---
+        if verbose:
+            if plot:
+                # Combina singole feature e gruppi in un unico dizionario
+                combined_results = {}
+                for name, acc in single_results.items():
+                    combined_results[f"S: {name}"] = acc  # S: per singola feature
+                if group_results:
+                    for name, acc in group_results.items():
+                        combined_results[f"G: {name}"] = acc  # G: per gruppo
+
+                # Ordina per accuracy crescente
+                combined_sorted = sorted(combined_results.items(), key=lambda x: x[1])
+
+                # Prendi solo gli ultimi 15 (migliori accuracy)
+                combined_sorted = combined_sorted[-plot_columns:]
+
+                labels, accs = zip(*combined_sorted)
+                x_pos = np.arange(len(labels))
+
+                plt.figure(figsize=(max(15, len(labels) * 0.5), 8))
+                plt.bar(x_pos, accs, color=['skyblue' if l.startswith('S:') else 'salmon' for l in labels], alpha=0.7)
+
+                # Linee di riferimento
+                plt.axhline(acc_all, color='green', linestyle='--', label='All features')
+                plt.axhline(0.900, color='orange', linestyle='--', label='Reference 0.9')
+
+                plt.xticks(x_pos, labels, rotation=90)
+                plt.ylabel("Accuracy after removal")
+                plt.title(f"Top {plot_columns} Ablation Results (Highest Accuracy)")
+                plt.legend()
+
+                # Scala y ridotta
+                plt.ylim(min(accs) - 0.005, max(accs) + 0.005)
+                plt.tight_layout()
+                plt.show()
+        return results
+
+    import random
+
+    def run_random_ablation(self, model, embeddings, n_cycles=15,
+                            n_very_big_groups=20, very_big_group_size=10,
+                            n_big_groups=20, big_group_size=7,
+                            n_medium_groups=20, medium_group_size=5,
+                            n_small_groups=20, small_group_size=3,
+                            n_very_small_groups=20, very_small_group_size=2,
+                            verbose=True):
+        """
+        Esegue cicli di ablation test con gruppi predefiniti, random e piccoli gruppi.
+
+        Args:
+            clf: oggetto con metodo ablation_analysis
+            model: modello sklearn-like non addestrato
+            embeddings: DataFrame contenente le feature
+            n_cycles: numero di cicli da eseguire
+            n_random_groups: numero di gruppi random per ciclo
+            random_group_size: dimensione dei gruppi random
+            n_small_groups: numero di piccoli gruppi per ciclo
+            small_group_size: dimensione dei piccoli gruppi
+            verbose: se True stampa i progressi
+
+        Returns:
+            best_result: dict con il miglior gruppo/feature per ciascun ciclo
+        """
+        all_features = list(embeddings.columns)
+        best_result = {}
+
+        for k in range(n_cycles):
+            # --- Definizione gruppi di base ---
+            feature_groups = {}
+
+            # Flags
+            feature_groups["flags"] = [f for f in all_features if "flags" in f]
+
+            # Coordinate raw
+            feature_groups["positions_X"] = [f for f in all_features if
+                                             "positions_" in f and "_X" in f and "normalized" not in f]
+            feature_groups["positions_Y"] = [f for f in all_features if
+                                             "positions_" in f and "_Y" in f and "normalized" not in f]
+
+            # Coordinate normalizzate
+            feature_groups["positions_norm_X"] = [f for f in all_features if "positions_normalized" in f and "_X" in f]
+            feature_groups["positions_norm_Y"] = [f for f in all_features if "positions_normalized" in f and "_Y" in f]
+
+            # Geometric info faccia / spalle / corpo
+            feature_groups["geometric_face"] = [f for f in all_features if
+                                                "geometric_info" in f and "face" in f and "k_" not in f]
+            feature_groups["geometric_shoulders"] = [f for f in all_features if
+                                                     "geometric_info" in f and "shoulder" in f and "k_" not in f]
+            feature_groups["geometric_body"] = [f for f in all_features if
+                                                "geometric_info" in f and "body" in f and "k_" not in f]
+
+            # k-keypoints version
+            feature_groups["k_positions_norm_X"] = [f for f in all_features if
+                                                    "k_positions_normalized" in f and "_X" in f]
+            feature_groups["k_positions_norm_Y"] = [f for f in all_features if
+                                                    "k_positions_normalized" in f and "_Y" in f]
+            feature_groups["k_geometric_face"] = [f for f in all_features if "k_geometric_info" in f and "face" in f]
+            feature_groups["k_geometric_shoulders"] = [f for f in all_features if
+                                                       "k_geometric_info" in f and "shoulder" in f]
+            feature_groups["k_geometric_body"] = [f for f in all_features if "k_geometric_info" in f and "body" in f]
+
+            # --- Gruppi casuali per ciclo ---
+            for i in range(n_very_big_groups):
+                group_name = f"random_group_{i + 1}"
+                feature_groups[group_name] = random.sample(all_features, very_big_group_size)
+
+            # --- Gruppi casuali per ciclo ---
+            for i in range(n_big_groups):
+                group_name = f"random_group_{i + 1}"
+                feature_groups[group_name] = random.sample(all_features, big_group_size)
+
+            # --- Gruppi medi per ciclo ---
+            for i in range(n_medium_groups):
+                group_name = f"medium_group_{i + 1}"
+                feature_groups[group_name] = random.sample(all_features, medium_group_size)
+
+            # --- Piccoli gruppi per ciclo ---
+            for i in range(n_small_groups):
+                group_name = f"small_group_{i + 1}"
+                feature_groups[group_name] = random.sample(all_features, small_group_size)
+
+            # --- Piccoli piccoli gruppi per ciclo ---
+            for i in range(n_very_small_groups):
+                group_name = f"small_group_{i + 1}"
+                feature_groups[group_name] = random.sample(all_features, very_small_group_size)
+
+            # --- Esegui ablation analysis ---
+            results = self.ablation_analysis(model, feature_groups=feature_groups, verbose=verbose)
+
+            # --- Trova il migliore tra singole e gruppi ---
+            max_acc = 0
+            best_feature_or_group = None
+            best_features_list = None
+
+            # Singole feature
+            for feature, acc in results["single_features"].items():
+                if acc > max_acc:
+                    max_acc = acc
+                    best_feature_or_group = feature
+                    best_features_list = [feature]
+
+            # Gruppi
+            for group_name, acc in results["groups"].items():
+                if acc > max_acc:
+                    max_acc = acc
+                    best_feature_or_group = group_name
+                    best_features_list = feature_groups[group_name]
+
+            # Salva il migliore di questo ciclo
+            if best_feature_or_group is not None:
+                best_result[f"cycle_{k + 1}_{best_feature_or_group}"] = [max_acc, best_features_list]
+
+            if verbose:
+                print(f"Cycle {k + 1} finished - Best: {best_feature_or_group} (acc={max_acc:.4f})")
+
+        return best_result
+
+
+    def iterative_ablation(self, model, embeddings, y, classes_bs,
+                           max_cycles=50,
+                           n_very_big_groups=20, very_big_group_size=10,
+                           n_big_groups=20, big_group_size=7,
+                           n_medium_groups=20, medium_group_size=5,
+                           n_small_groups=20, small_group_size=3,
+                           n_very_small_groups=20, very_small_group_size=2,
+                           verbose=True):
+        """
+        Esegue ablation iterativa: rimuove progressivamente feature o gruppi
+        se la loro rimozione mantiene o migliora l'accuracy.
+
+        Args:
+            clf: istanza di Classifier
+            model: modello sklearn-like non addestrato
+            embeddings: DataFrame con le feature correnti
+            y: target
+            classes_bs: dizionario label -> nome
+            max_cycles: numero massimo di iterazioni
+            n_random_groups, random_group_size, n_small_groups, small_group_size: parametri per run_random_ablation
+            verbose: se True stampa log
+
+        Returns:
+            embeddings_final: embeddings ridotto con le feature rimanenti
+            history: lista di tuple (ciclo, best_removed, accuracy)
+        """
+        embeddings_current = embeddings.copy()
+        history = []
+
+        # Calcola l'accuracy iniziale su tutte le feature
+        clf_temp = Classifier(embeddings_current, y, classes_bs)
+        results_all = clf_temp.ablation_analysis(model, feature_groups={}, verbose=verbose)
+        base_acc = results_all["all_features"]
+
+        if verbose:
+            print(f"Starting accuracy with all features: {base_acc:.4f}")
+
+        for cycle in range(1, max_cycles + 1):
+            if verbose:
+                print(f"\n=== Iterative ablation cycle {cycle} ===")
+
+            # Esegui run_random_ablation sul set di feature corrente
+            best_result = self.run_random_ablation(
+                model=model,
+                embeddings=embeddings_current,
+                n_cycles=1,
+                n_very_big_groups=n_very_big_groups,
+                very_big_group_size=very_big_group_size,
+                n_big_groups=n_big_groups,
+                big_group_size=big_group_size,
+                medium_group_size=medium_group_size,
+                n_medium_groups=n_medium_groups,
+                n_small_groups=n_small_groups,
+                small_group_size=small_group_size,
+                n_very_small_groups=n_very_small_groups,
+                very_small_group_size=very_small_group_size,
+                verbose=verbose
+            )
+            # Prendi il miglior elemento del ciclo
+            best_key, (best_acc, best_features_list) = list(best_result.items())[0]
+
+            if verbose:
+                print(f"Best removal this cycle: {best_key} -> accuracy {best_acc:.4f}")
+
+
+
+            # Se la rimozione migliora o mantiene l'accuracy
+            if best_acc >= base_acc:
+                embeddings_current = embeddings_current.drop(columns=best_features_list, errors='ignore')
+                base_acc = best_acc
+                history.append((cycle, best_key, best_acc))
+                if verbose:
+                    print(f"Removed features: {best_features_list}")
+                    print(f"New accuracy: {base_acc:.4f}")
+            else:
+                if verbose:
+                    print("No further improvement, stopping iterative ablation.")
+                break
+
+        return embeddings_current, history
+
+
+
+
 
 
 
