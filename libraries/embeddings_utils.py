@@ -584,26 +584,27 @@ class EmbeddingBuilder:
         return embedding
 
 
-    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False ):
+    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False,custom=False,model=None):
         features_names = []
-        if flags:
+
+        if flags or custom:
             features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
-        if positions:
+        if positions or custom:
             features_names += ["x_eye1", "y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth"]
-        if positions_normalized:
+        if positions_normalized or custom:
             features_names += ["x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm",
                                "x_mouth_norm", "y_mouth_norm"]
-        if geometric_info:
+        if geometric_info or custom:
             features_names += ["eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
                                "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
 
-        if k_positions_normalized:
+        if k_positions_normalized or custom:
             features_names += [ "x_nose_k", "y_nose_k", "x_left_eye_k", "y_left_eye_k", "x_right_eye_k", "y_right_eye_k", "x_left_ear", "y_left_ear", "x_right_ear","y_right_ear",
                                 "x_left_shoulder","y_left_shoulder", "x_right_shoulder", "y_right_shoulder", "x_left_elbow","y_left_elbow", "x_right_elbow","y_right_elbow",
                                 "x_left_wrist","y_left_wrist", "x_right_wrist", "y_right_wrist", "x_left_hip","y_left_hip", "x_right_hip","y_right_hip",
                                 "x_left_knee", "y_left_knee","x_right_knee","y_right_knee", "x_left_ankle","y_left_ankle", "x_right_ankle","y_right_ankle"
                                 ]
-        if k_geometric_info:
+        if k_geometric_info or custom:
             features_names += ["shoulders_dist", "shoulder_hip_right_dist", "shoulder_hip_left_dist", "nose_shoulder_right", "nose_shoulder_left", "shoulder_left_knee_right", "shoulder_right_knee_left", "knee_ankle_right", "knee_ankle_left","nose_hip_right", "nose_hip_left"]
 
             features_names+= ["elbow_shoulder_hip_right","elbow_shoulder_hip_left","shoulder_elbow_wrist_right","shoulder_elbow_wrist_left",
@@ -611,17 +612,17 @@ class EmbeddingBuilder:
                               "shoulders_line_inclination","hips_line_inclination","torsion"]
 
         embedding = []
-        if flags:
+        if flags or custom:
             embedding += self.extract_flags(ft)
-        if positions:
+        if positions or custom:
             embedding += self.extract_coordinates(ft)
-        if positions_normalized:
+        if positions_normalized or custom:
             embedding += self.extract_normalized_coordiates(ft)
-        if geometric_info:
+        if geometric_info or custom:
             embedding += self.extract_geometric_info(ft)
-        if k_positions_normalized:
+        if k_positions_normalized or custom:
             embedding += self.normalize_wrt_body_center(ft)
-        if k_geometric_info:
+        if k_geometric_info or custom:
             embedding += self.distances_between_keypoints(ft)
             embedding += self.angles_between_keypoints(ft)
 

@@ -1,7 +1,9 @@
+import os
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pandas import DataFrame
 from torch.utils.data import Dataset, DataLoader, random_split
 from pytorch_metric_learning.losses import SupConLoss
 from copy import deepcopy
@@ -147,6 +149,12 @@ class EmbeddingDataset(Dataset):
         # Carica il miglior modello
         model.load_state_dict(best_model_state)
         return model, val_acc
+
+    def save_embeddings(self,embeddings):
+        project_dir = f"{os.getcwd().split('SIDS_revelation_project')[0]}SIDS_revelation_project/"
+        embeddings.to_csv(f"{project_dir}/embeddings/embedding_best.csv", index=False)
+
+
 
 
 

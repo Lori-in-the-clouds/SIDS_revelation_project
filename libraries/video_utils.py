@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 from collections import deque
 import matplotlib.pyplot as plt
+from libraries.EmbeddingNet_utils import *
 
 
 def draw_keypoints_on_frame(img, keypoints_list, number: bool = False, thickness_line=2, thickness_point=3):
@@ -120,7 +121,8 @@ def process_video(input_video_path: str,
                   default_fps: int = 20,
                   verbose: bool = False,
                   upper_thresh=0.65, # decrease filter if above
-                  lower_thresh=0.35): # increase filter if below
+                  lower_thresh=0.35,
+                  custom_embedddings=False): # increase filter if below
 
     def count_valid(kpts_set):
         """Count valid keypoints in a given set."""
@@ -270,10 +272,14 @@ def process_video(input_video_path: str,
             frame = draw_keypoints_on_frame(frame, keypoints_list, number=False)
 
         # --- Feature extraction & prediction ---
-        train = builder.create_embedding_for_video(
-            kpt, flags=True, positions=True, geometric_info=True, positions_normalized=True,
-            k_positions_normalized=True, k_geometric_info=True,
-        ).reshape(1, -1)
+        if not custom_embedddings:
+            train = builder.create_embedding_for_video(
+                kpt, flags=True, positions=True, geometric_info=True, positions_normalized=True,
+                k_positions_normalized=True, k_geometric_info=True,
+            ).reshape(1, -1)
+        else:
+            project_dir = f"{os.getcwd().split('SIDS_revelation_project')[0]}SIDS_revelation_project/"
+            train = pd.read_csv(f"{project_dir}/embeddings/embedding_best.csv")
 
         pred = clf.predict(train)[0]
         prob = clf.predict_proba(train)[0][np.where(clf.classes_ == pred)[0][0]] if hasattr(clf,"predict_proba") else 1.0
