@@ -73,7 +73,6 @@ class EmbeddingDataset(Dataset):
 
         # Carica il modello con la loss migliore
         model.load_state_dict(best_model_state)
-
         return model
 
     def extract_embeddings(self,model):

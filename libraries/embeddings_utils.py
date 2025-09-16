@@ -10,12 +10,6 @@ import pandas as pd
 import ast
 from sklearn.preprocessing import StandardScaler
 
-def standard_scaler_embeddings(embeddings: DataFrame):
-    embeddings_df = embeddings
-    scaler = StandardScaler()
-    embeddings_scaled = scaler.fit_transform(embeddings_df)
-    embeddings_scaled_df = pd.DataFrame(embeddings_scaled, columns=embeddings_df.columns, index=embeddings_df.index)
-    return embeddings_scaled_df
 
 ''' GEOMETRIC FUNCTIONS '''
 
@@ -24,12 +18,10 @@ def compute_distance(point1, point2):
         return -1
     return np.linalg.norm(np.array(point1) - np.array(point2))
 
-
 def compute_point_to_line_distance(point, line_start, line_end):
     # Distance from a point to a line defined by line_start and line_end
     return (np.abs(np.cross(np.array(line_end) - np.array(line_start),
                             np.array(line_start) - np.array(point))) / compute_distance(line_start, line_end))
-
 
 def compute_face_angle(el1, nose, el2):
     if el1 == (-1, -1) or nose == (-1, -1) or el2 == (-1, -1):
@@ -43,15 +35,12 @@ def compute_face_angle(el1, nose, el2):
     angle_rad = np.arccos(cos_theta)
     return np.degrees(angle_rad)
 
-
 def normalize(coordinates, head):
     if head == -1:
         return list(coordinates)
     else:
         head_xy = (head[0], head[1])
         return [a / b for a, b in zip(coordinates, head_xy)]
-
-
 
 ''' EMBEDDING BUILDER CLASS '''
 class EmbeddingBuilder:
@@ -102,6 +91,8 @@ class EmbeddingBuilder:
         self.y = []
         self.image_paths = []
 
+        self.scaler_fitted = None
+
         if mode == "extract_features":
             self.process_dataset("default")
         elif mode == "extract_features_imageswithinference":
@@ -122,6 +113,19 @@ class EmbeddingBuilder:
         print(f"Dataset dimension: {self.dim_dataset}")
         print(f"Dataset labels: {self.classes_bs}")
         print("".ljust(90, '-'))
+
+    def standard_scaler_embeddings(self, embeddings: DataFrame, scaler = None):
+        embeddings_df = embeddings
+        if scaler is None:
+            scaler = StandardScaler()
+            scaler_fitted = scaler.fit(embeddings_df)
+            self.scaler_fitted = scaler_fitted
+        else:
+            scaler_fitted = scaler
+
+        embeddings_scaled = scaler_fitted.transform(embeddings_df)
+        embeddings_scaled_df = pd.DataFrame(embeddings_scaled, columns=embeddings_df.columns, index=embeddings_df.index)
+        return embeddings_scaled_df
 
     def progress_debug(self, var_to_monitor: list):
         """
@@ -494,7 +498,7 @@ class EmbeddingBuilder:
         print(f"FINISHED: {len(X)} embedding created")
         print("".ljust(90, '-'))
 
-        embeddings = standard_scaler_embeddings(pd.DataFrame(X, columns=features_names))
+        embeddings = self.standard_scaler_embeddings(pd.DataFrame(X, columns=features_names))
         return embeddings
 
     def normalize_wrt_body_center(self, ft):
@@ -521,8 +525,6 @@ class EmbeddingBuilder:
             else:
                 embedding.extend([0.0, 0.0])
         return embedding
-
-
 
     def distances_between_keypoints(self,ft):
 
@@ -585,6 +587,7 @@ class EmbeddingBuilder:
 
 
     def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False ):
+        self.create_embedding(flags=True,positions=True, positions_normalized=True, geometric_info=True,k_positions_normalized=True ,k_geometric_info=True) #to inizialize self.scaler_fitted
         features_names = []
         if flags:
             features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
@@ -625,8 +628,8 @@ class EmbeddingBuilder:
             embedding += self.distances_between_keypoints(ft)
             embedding += self.angles_between_keypoints(ft)
 
-        return np.array(embedding)
-
+        embedding = self.standard_scaler_embeddings(pd.DataFrame([embedding], columns= features_names), scaler=self.scaler_fitted)
+        return embedding.to_numpy()
 
 
 
