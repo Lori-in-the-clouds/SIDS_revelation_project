@@ -12,5 +12,6 @@
 !**/*.txt
 !**/*.pkl
 *.mp4
+!**/*.md
 
 !models/**/*.png
