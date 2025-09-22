@@ -14,5 +14,6 @@
 *.mp4
 !**/*.md
 !**/*.gif
+!*.png
 
 !models/**/*.png

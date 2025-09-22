@@ -45,10 +45,8 @@ Focusing on it, this is the processing pipleine:
 flowchart TD
     A[Frame] --> |YOLOv8 face detection| B[Face features]
     A--> |YOLOv8 pose estimation| C[Pose features]
-    B--> |Features elaboration
-    angles and distances evaluation, normalization| D
-    C--> |Features elaboration
-    angles and distances evaluation, normalization| D
+    B--> |Features elaboration:\n angles and distances evaluation, normalization| D
+    C--> |Features elaboration:\n angles and distances evaluation, normalization| D
     D[Embedding with face and pose information]
     D-->|Processing with MLP| E[ Learned embedding ]
     E--> G[XGBoost classifier]
