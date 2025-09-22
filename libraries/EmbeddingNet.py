@@ -32,7 +32,7 @@ class EmbeddingDataset(Dataset):
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.long)
         self.device = device
-
+22
     def __len__(self):
         return len(self.X)
 
