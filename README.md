@@ -91,11 +91,11 @@ It is the one which shows less overfitting trend, with a really high recall dete
 
 ![best_classifiers_metrics.png](best_classifiers_metrics.png)
 
-
-## Frame preprocessing with CLHAE filters
-
 ## Qualitative results
 ![Demo](classification_demo.gif)
+
+
+Our model is frame based. It may be improved with some inter frames considerations to make the predictions more stable, anyway it is a good starting point for future refinements.
 
 
 
