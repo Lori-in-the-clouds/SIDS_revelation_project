@@ -88,6 +88,7 @@ Many classifiers have been trained and compared, hyperparameters optimization ha
 
 In particular, the chosen classifier is an XGBoost model with optimized hyperparameters
 It is the one which shows less overfitting trend, with a really high recall detecting "baby in danger"(given the sensible task) and with a high accuracy too.
+
 ![best_classifiers_metrics.png](best_classifiers_metrics.png)
 
 
