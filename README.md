@@ -97,6 +97,6 @@ It is the one which shows less overfitting trend, with a really high recall dete
 
 Our model is frame based. It may be improved with some inter frames considerations to make the predictions more stable, anyway it is a good starting point for future refinements.
 
-The demo video is AI generated using VEO.
+The demo video was AI generated using VEO.
 
 
