@@ -10,6 +10,9 @@
   - [🛠️ Feature Engineering & Embedding](#-feature-engineering--embedding)
   - [📊 XGBoost Classifier](#-xgboost-classifier)
 - [🎥 Qualitative Results](#-qualitative-results)
+- [🔧 Installation](#-installation)
+- [🚀 Runnging the Project](#-running-the-project)
+- [🖼️ Output](#-output)
 
 ## 🎯 Project goal
 This project aims to develop a computer vision–based **monitoring system** to track infants while they sleep and detect potentially dangerous positions that may increase **the risk of Sudden Infant Death Syndrome (SIDS)**.
@@ -104,4 +107,10 @@ Our model is frame-based. Future work may include inter-frame analysis to stabil
 
 The demo video was AI generated using VEO.
 
+## 🔧 Installation
+In progress
+## 🚀 Running the Project
+In progress
+## 🖼️ Output
+In progress
 
