@@ -231,6 +231,7 @@ class ImageRetrieval:
 
             plt.axvline(sample_scores.mean(), color="red", linestyle="--", label=f"Mean = {silhouette_score_value:.3f}")
             plt.xlabel("Silhouette coefficient")
+            plt.xlim(-1, 1)
             plt.ylabel("Numero di campioni")
             plt.title("Distribuzione Silhouette score per classe")
             plt.legend()
@@ -320,7 +321,7 @@ class ImageRetrieval:
         self.embeddings_maha = Xc
 
     def report(self, metric="euclidean"):
-        self.build_index(metric, k= len(self.embeddings_norm))
+        self.build_index(metric)
 
         # plot precisions at different k
         print("Precision at different k:".ljust(90, "-"))
@@ -333,10 +334,8 @@ class ImageRetrieval:
 
         print()
         print(f"Silhouette score".ljust(90, "-"))
-        self.plot_silhouette_per_class()
+        self.plot_silhouette_per_class(verbose=True)
 
         print()
         print(f"Embeddings distributions".ljust(90, "-"))
-        self.plot_lda()
-        self.plot_tsne()
         self.plot_umap()

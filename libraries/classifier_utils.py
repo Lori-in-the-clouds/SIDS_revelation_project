@@ -26,14 +26,15 @@ def get_model_name(clf_untrained):
     return class_name
 
 class Classifier:
-    def __init__(self, embeddings, y, classes_bs, figsize = (5.6, 4.2)):
+    def __init__(self, embeddings, y, classes_bs, image_paths= None ,figsize = (5.6, 4.2)):
         self.X = embeddings.values
         self.features = embeddings.columns
         self.len_features = len(embeddings.columns)
+        self.images_paths = image_paths if image_paths else self.X
 
         self.y = np.array(y)
         self.classes_bs = classes_bs
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2, random_state=42)
+        self.X_train, self.X_test, self.y_train, self.y_test, self.images_paths_train, self.images_paths_test = train_test_split(self.X, self.y,self.images_paths, test_size=0.2, random_state=42)
 
         self.figsize = figsize
     def logistic_regression(self,verbose =True):
@@ -249,7 +250,7 @@ class Classifier:
             plt.ylabel("Accuracy")
             plt.legend()
             plt.title("Learning Curve")
-            plt.ylim(0, 1)
+            plt.ylim(0.5, 1)
             plt.show()
 
 
@@ -675,7 +676,74 @@ class Classifier:
 
 
 
+    def evaluation_pipeline_save_misclassified(self,clf_untrained, verbose=True, is_ensemble=False,optimized:bool=False,n_top_features=[25, 10]):
+        if verbose:
+            print("".center(90, '-'))
+            print("FIRST ANALYSIS".center(90, '-'))
+            print("".center(90, '-'))
 
+        clf_trained = clone(clf_untrained)
+
+
+        clf_trained.fit(self.X_train, self.y_train)
+
+
+        project_dir = f"{os.getcwd().split('SIDS_revelation_project')[0]}SIDS_revelation_project/"
+        joblib.dump(clf_trained,f"{project_dir}classifiers/{get_model_name(clf_untrained)}_{self.len_features}_features{'_optimized' if optimized else ''}.pkl")
+
+        importances, indices = None, None
+        if not is_ensemble:
+            importances, indices = self.plot_feature_importance(clf_trained, verbose=verbose)
+
+        if verbose:
+            self.plot_learning_curve(clf_trained)
+            self.evaluate_metrics(clf_trained)
+
+        results = {
+            'all_features': {
+                'model': clf_trained,
+                'X': self.X,
+                'y': self.y,
+                'y_predicted': clf_trained.predict(self.X_test)
+            }
+        }
+
+        for n_features in n_top_features:
+            if not is_ensemble and importances is not None and len(self.features) > n_features:
+                if verbose:
+                    print("".center(90, '-'))
+                    print(f"TOP {n_features} FEATURES ANALYSIS".center(90, '-'))
+                    print("".center(90, '-'))
+                    plt.figure(figsize=self.figsize)
+                    plt.title(f"Top {n_features} feature importances")
+                    plt.bar(range(n_features), importances[indices[:n_features]])
+                    plt.xticks(range(n_features), [f"{self.features[i]}" for i in indices[:n_features]], rotation=90)
+                    plt.tight_layout()
+                    plt.show()
+
+                top_k = n_features
+                top_features_idx = indices[:top_k]
+                X_train_selected = self.X_train[:, top_features_idx]
+                X_test_selected = self.X_test[:, top_features_idx]
+                X_selected = self.X[:, top_features_idx]
+                clf_retrained = clone(clf_untrained)
+                clf_retrained.fit(X_train_selected, self.y_train)
+
+
+                if verbose:
+                    self.plot_learning_curve(clf_retrained, X_selected)
+                    self.evaluate_metrics(clf_retrained, X_test_selected)
+
+                results[f"top_{n_features}_features"] = {
+                    'model': clf_retrained,
+                    'X': X_selected,
+                    'y': self.y,
+                    'top_features_idx': top_features_idx, # Added this to the dictionary,
+                    'y_predicted': clf_retrained.predict(X_test_selected),
+                }
+                joblib.dump(clf_retrained,f"{project_dir}classifiers/{get_model_name(clf_untrained)}_{n_features}_features{'_optimized' if optimized else ''}.pkl")
+
+        return results
 
 
 

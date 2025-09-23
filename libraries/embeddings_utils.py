@@ -10,12 +10,6 @@ import pandas as pd
 import ast
 from sklearn.preprocessing import StandardScaler
 
-def standard_scaler_embeddings(embeddings: DataFrame):
-    embeddings_df = embeddings
-    scaler = StandardScaler()
-    embeddings_scaled = scaler.fit_transform(embeddings_df)
-    embeddings_scaled_df = pd.DataFrame(embeddings_scaled, columns=embeddings_df.columns, index=embeddings_df.index)
-    return embeddings_scaled_df
 
 ''' GEOMETRIC FUNCTIONS '''
 
@@ -24,12 +18,10 @@ def compute_distance(point1, point2):
         return -1
     return np.linalg.norm(np.array(point1) - np.array(point2))
 
-
 def compute_point_to_line_distance(point, line_start, line_end):
     # Distance from a point to a line defined by line_start and line_end
     return (np.abs(np.cross(np.array(line_end) - np.array(line_start),
                             np.array(line_start) - np.array(point))) / compute_distance(line_start, line_end))
-
 
 def compute_face_angle(el1, nose, el2):
     if el1 == (-1, -1) or nose == (-1, -1) or el2 == (-1, -1):
@@ -43,15 +35,12 @@ def compute_face_angle(el1, nose, el2):
     angle_rad = np.arccos(cos_theta)
     return np.degrees(angle_rad)
 
-
 def normalize(coordinates, head):
     if head == -1:
         return list(coordinates)
     else:
         head_xy = (head[0], head[1])
         return [a / b for a, b in zip(coordinates, head_xy)]
-
-
 
 ''' EMBEDDING BUILDER CLASS '''
 class EmbeddingBuilder:
@@ -102,6 +91,8 @@ class EmbeddingBuilder:
         self.y = []
         self.image_paths = []
 
+        self.scaler_fitted = None
+
         if mode == "extract_features":
             self.process_dataset("default")
         elif mode == "extract_features_imageswithinference":
@@ -122,6 +113,19 @@ class EmbeddingBuilder:
         print(f"Dataset dimension: {self.dim_dataset}")
         print(f"Dataset labels: {self.classes_bs}")
         print("".ljust(90, '-'))
+
+    def standard_scaler_embeddings(self, embeddings: DataFrame, scaler = None):
+        embeddings_df = embeddings
+        if scaler is None:
+            scaler = StandardScaler()
+            scaler_fitted = scaler.fit(embeddings_df)
+            self.scaler_fitted = scaler_fitted
+        else:
+            scaler_fitted = scaler
+
+        embeddings_scaled = scaler_fitted.transform(embeddings_df)
+        embeddings_scaled_df = pd.DataFrame(embeddings_scaled, columns=embeddings_df.columns, index=embeddings_df.index)
+        return embeddings_scaled_df
 
     def progress_debug(self, var_to_monitor: list):
         """
@@ -494,7 +498,7 @@ class EmbeddingBuilder:
         print(f"FINISHED: {len(X)} embedding created")
         print("".ljust(90, '-'))
 
-        embeddings = standard_scaler_embeddings(pd.DataFrame(X, columns=features_names))
+        embeddings = self.standard_scaler_embeddings(pd.DataFrame(X, columns=features_names))
         return embeddings
 
     def normalize_wrt_body_center(self, ft):
@@ -521,8 +525,6 @@ class EmbeddingBuilder:
             else:
                 embedding.extend([0.0, 0.0])
         return embedding
-
-
 
     def distances_between_keypoints(self,ft):
 
@@ -584,27 +586,27 @@ class EmbeddingBuilder:
         return embedding
 
 
-    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False,custom=False,model=None):
+    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False ):
+        self.create_embedding(flags=True,positions=True, positions_normalized=True, geometric_info=True,k_positions_normalized=True ,k_geometric_info=True) #to inizialize self.scaler_fitted
         features_names = []
-
-        if flags or custom:
+        if flags:
             features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
-        if positions or custom:
+        if positions:
             features_names += ["x_eye1", "y_eye1", "x_eye2", "y_eye2", "x_nose", "y_nose", "x_mouth", "y_mouth"]
-        if positions_normalized or custom:
+        if positions_normalized:
             features_names += ["x_eye1_norm", "y_eye1_norm", "x_eye2_norm", "y_eye2_norm", "x_nose_norm", "y_nose_norm",
                                "x_mouth_norm", "y_mouth_norm"]
-        if geometric_info or custom:
+        if geometric_info:
             features_names += ["eye_distance", "eye_distance_norm", "face_vertical_length", "face_vertical_length_norm",
                                "face_angle_vertical", "face_angle_horizontal", "symmetry_diff", "head_ration"]
 
-        if k_positions_normalized or custom:
+        if k_positions_normalized:
             features_names += [ "x_nose_k", "y_nose_k", "x_left_eye_k", "y_left_eye_k", "x_right_eye_k", "y_right_eye_k", "x_left_ear", "y_left_ear", "x_right_ear","y_right_ear",
                                 "x_left_shoulder","y_left_shoulder", "x_right_shoulder", "y_right_shoulder", "x_left_elbow","y_left_elbow", "x_right_elbow","y_right_elbow",
                                 "x_left_wrist","y_left_wrist", "x_right_wrist", "y_right_wrist", "x_left_hip","y_left_hip", "x_right_hip","y_right_hip",
                                 "x_left_knee", "y_left_knee","x_right_knee","y_right_knee", "x_left_ankle","y_left_ankle", "x_right_ankle","y_right_ankle"
                                 ]
-        if k_geometric_info or custom:
+        if k_geometric_info:
             features_names += ["shoulders_dist", "shoulder_hip_right_dist", "shoulder_hip_left_dist", "nose_shoulder_right", "nose_shoulder_left", "shoulder_left_knee_right", "shoulder_right_knee_left", "knee_ankle_right", "knee_ankle_left","nose_hip_right", "nose_hip_left"]
 
             features_names+= ["elbow_shoulder_hip_right","elbow_shoulder_hip_left","shoulder_elbow_wrist_right","shoulder_elbow_wrist_left",
@@ -612,22 +614,22 @@ class EmbeddingBuilder:
                               "shoulders_line_inclination","hips_line_inclination","torsion"]
 
         embedding = []
-        if flags or custom:
+        if flags:
             embedding += self.extract_flags(ft)
-        if positions or custom:
+        if positions:
             embedding += self.extract_coordinates(ft)
-        if positions_normalized or custom:
+        if positions_normalized:
             embedding += self.extract_normalized_coordiates(ft)
-        if geometric_info or custom:
+        if geometric_info:
             embedding += self.extract_geometric_info(ft)
-        if k_positions_normalized or custom:
+        if k_positions_normalized:
             embedding += self.normalize_wrt_body_center(ft)
-        if k_geometric_info or custom:
+        if k_geometric_info:
             embedding += self.distances_between_keypoints(ft)
             embedding += self.angles_between_keypoints(ft)
 
-        return np.array(embedding)
-
+        embedding = self.standard_scaler_embeddings(pd.DataFrame([embedding], columns= features_names), scaler=self.scaler_fitted)
+        return embedding.to_numpy()
 
 
 

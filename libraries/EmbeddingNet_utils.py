@@ -34,7 +34,7 @@ class EmbeddingDataset(Dataset):
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.long)
         self.device = device
-
+22
     def __len__(self):
         return len(self.X)
 
@@ -75,7 +75,6 @@ class EmbeddingDataset(Dataset):
 
         # Carica il modello con la loss migliore
         model.load_state_dict(best_model_state)
-
         return model
 
     def extract_embeddings(self,model):
