@@ -1,18 +1,20 @@
 # SIDS DETECTOR
-## 📖 Table of Contents
-- [🎯 Project Goal](#-project-goal)
-- [❓Problem Definition](#-problem-definition)
-- [💡 Proposed Solution](#-proposed-solution)
-- [🔄 System Workflow](#-system-workflow)
-- [🧠 Computer Vision Model Pipeline](#-computer-vision-model-pipeline)
-  - [🔍 YOLOv8 Face Detection](#-yolov8-face-detection-model)
-  - [🏃 YOLOv8 Pose Estimation](#-yolov8-pose-estimation-model)
-  - [🛠️ Feature Engineering & Embedding](#-feature-engineering--embedding)
-  - [📊 XGBoost Classifier](#-xgboost-classifier)
-- [🎥 Qualitative Results](#-qualitative-results)
-- [🔧 Installation](#-installation)
-- [🚀 Runnging the Project](#-running-the-project)
-- [🖼️ Output](#-output)
+<details>
+<summary>📖 Table of Contents</summary>
+- [🎯 Project Goal](#-project-goal)  
+- [❓ Problem Definition](#-problem-definition)  
+- [💡 Proposed Solution](#-proposed-solution)  
+- [🔄 System Workflow](#-system-workflow)  
+- [🧠 Computer Vision Model Pipeline](#-computer-vision-model-pipeline)  
+  - [🔍 YOLOv8 Face Detection](#-yolov8-face-detection-model)  
+  - [🏃 YOLOv8 Pose Estimation](#-yolov8-pose-estimation-model)  
+  - [🛠️ Feature Engineering & Embedding](#-feature-engineering--embedding)  
+  - [📊 XGBoost Classifier](#-xgboost-classifier)  
+- [🎥 Qualitative Results](#-qualitative-results)  
+- [📦 Installation](#-installation)  
+- [🚀 Running the Project](#-running-the-project)  
+- [📊🖼️ Output](#-output)
+</details>
 
 ## 🎯 Project goal
 This project aims to develop a computer vision–based **monitoring system** to track infants while they sleep and detect potentially dangerous positions that may increase **the risk of Sudden Infant Death Syndrome (SIDS)**.
