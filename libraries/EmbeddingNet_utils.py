@@ -34,7 +34,7 @@ class EmbeddingDataset(Dataset):
         self.X = torch.tensor(X, dtype=torch.float32)
         self.y = torch.tensor(y, dtype=torch.long)
         self.device = device
-22
+
     def __len__(self):
         return len(self.X)
 
@@ -149,9 +149,6 @@ class EmbeddingDataset(Dataset):
         model.load_state_dict(best_model_state)
         return model, val_acc
 
-    def save_embeddings(self,embeddings):
-        project_dir = f"{os.getcwd().split('SIDS_revelation_project')[0]}SIDS_revelation_project/"
-        embeddings.to_csv(f"{project_dir}/embeddings/embedding_best.csv", index=False)
 
 
 

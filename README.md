@@ -14,7 +14,7 @@
 - [🎥 Qualitative Results](#-qualitative-results)  
 - [📦 Installation](#-installation)  
 - [🚀 Running the Project](#-running-the-project)  
-- [📊🖼️ Output](#-output)
+- [🖼️ Output](#-output)
 </details>
 
 ## 🎯 Project goal
@@ -111,9 +111,29 @@ Our model is frame-based. Future work may include inter-frame analysis to stabil
 The demo video was AI generated using VEO.
 
 ## 🔧 Installation
-In progress
+
+### Requirements
+- Python 3.10+
+- [PyTorch](https://pytorch.org/get-started/locally/) (with CUDA support recommended)
+- Ultralytics YOLOv8
+- XGBoost
+- Scikit-learn
+- OpenCV
+- Numpy, Pandas, Matplotlib
+### Setup
+Clone the repository and install dependencies:
+```bash
+git clone https://github.com/<your-username>/SIDS_revelation_project.git
+cd SIDS_revelation_project.git
+pip install -r requirements.txt
+```
+
 ## 🚀 Running the Project
-In progress
+Run inference on a video:
+```bash
+
+```
+
 ## 🖼️ Output
 In progress
 
