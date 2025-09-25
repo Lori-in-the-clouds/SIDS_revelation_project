@@ -122,19 +122,19 @@ The demo video was AI generated using VEO.
 - Numpy, Pandas, Matplotlib
 ### Setup
 Clone the repository and install dependencies:
-- **For Apple Silicon (Metal)**
-    ```bash
-    git clone https://github.com/<your-username>/SIDS_revelation_project.git
-    cd SIDS_revelation_project.git
-    pip install -r mps_requirements.txt
-    ```
 - **For Cuda**
     ```bash
     git clone https://github.com/<your-username>/SIDS_revelation_project.git
     cd SIDS_revelation_project.git
     pip install -r cuda_requirements.txt
     ```
-
+- **For Apple Silicon (Metal)**
+    ```bash
+    git clone https://github.com/<your-username>/SIDS_revelation_project.git
+    cd SIDS_revelation_project.git
+    pip install -r mps_requirements.txt
+    ```
+  
 ## 🚀 Running the Project
 To run inference on an `.mp4` video:
 ```bash
