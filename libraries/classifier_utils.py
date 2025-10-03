@@ -675,6 +675,57 @@ class Classifier:
         return embeddings_current, history
 
 
+    def plot_learning_curve_loss_curve(self, clf, X_selected=None, verbose=True):
+        X = X_selected if X_selected is not None else self.X
+
+        # ---- accuracy ----
+        train_sizes, train_scores_acc, test_scores_acc = learning_curve(
+            clf,
+            X, self.y,
+            cv=5, n_jobs=-1,
+            train_sizes=np.linspace(0.1, 1.0, 5),
+            scoring="accuracy"
+        )
+        train_mean_acc = train_scores_acc.mean(axis=1)
+        test_mean_acc = test_scores_acc.mean(axis=1)
+
+        # ---- log loss ----
+        train_sizes2, train_scores_loss, test_scores_loss = learning_curve(
+            clf,
+            X, self.y,
+            cv=5, n_jobs=-1,
+            train_sizes=np.linspace(0.1, 1.0, 5),
+            scoring="neg_log_loss"
+        )
+        # attenzione: sklearn restituisce "neg_log_loss", quindi invertiamo il segno
+        train_mean_loss = -train_scores_loss.mean(axis=1)
+        test_mean_loss = -test_scores_loss.mean(axis=1)
+
+        if verbose:
+            plt.figure(figsize=(12, 5))
+
+            # Accuracy
+            plt.subplot(1, 2, 1)
+            plt.plot(train_sizes, train_mean_acc, 'o-', label="Train acc")
+            plt.plot(train_sizes, test_mean_acc, 'o-', label="Val acc")
+            plt.xlabel("Training set size")
+            plt.ylabel("Accuracy")
+            plt.title("Learning Curve - Accuracy")
+            plt.grid(True)
+            plt.legend()
+
+            # Log loss
+            plt.subplot(1, 2, 2)
+            plt.plot(train_sizes2, train_mean_loss, 'o-', label="Train loss")
+            plt.plot(train_sizes2, test_mean_loss, 'o-', label="Val loss")
+            plt.xlabel("Training set size")
+            plt.ylabel("Log Loss")
+            plt.title("Learning Curve - Log Loss")
+            plt.grid(True)
+            plt.legend()
+
+            plt.tight_layout()
+            plt.show()
 
     def evaluation_pipeline_save_misclassified(self,clf_untrained, verbose=True, is_ensemble=False,optimized:bool=False,n_top_features=[25, 10]):
         if verbose:
@@ -696,7 +747,7 @@ class Classifier:
             importances, indices = self.plot_feature_importance(clf_trained, verbose=verbose)
 
         if verbose:
-            self.plot_learning_curve(clf_trained)
+            self.plot_learning_curve_loss_curve(clf_trained)
             self.evaluate_metrics(clf_trained)
 
         results = {
