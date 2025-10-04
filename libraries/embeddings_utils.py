@@ -445,7 +445,7 @@ class EmbeddingBuilder:
         return geometric_info
 
     """     Embeddings types        """
-    def create_embedding(self, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False, k_geometric_info=False):
+    def create_embedding(self, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False, k_geometric_info=False, verbose=True):
         features_names = []
         if flags:
             features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]
@@ -473,9 +473,10 @@ class EmbeddingBuilder:
 
         X = []
 
-        print("")
-        print("Embedding creation".ljust(90, '-'))
-        print(f"Features: {features_names}")
+        if verbose:
+            print("")
+            print("Embedding creation".ljust(90, '-'))
+            print(f"Features: {features_names}")
 
         for ft in self.features.to_dict(orient='records'):
             embedding = []
@@ -494,9 +495,9 @@ class EmbeddingBuilder:
                 embedding += self.angles_between_keypoints(ft)
 
             X.append(embedding)
-
-        print(f"FINISHED: {len(X)} embedding created")
-        print("".ljust(90, '-'))
+        if verbose:
+            print(f"FINISHED: {len(X)} embedding created")
+            print("".ljust(90, '-'))
 
         embeddings = self.standard_scaler_embeddings(pd.DataFrame(X, columns=features_names))
         return embeddings
@@ -586,8 +587,8 @@ class EmbeddingBuilder:
         return embedding
 
 
-    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False ):
-        self.create_embedding(flags=True,positions=True, positions_normalized=True, geometric_info=True,k_positions_normalized=True ,k_geometric_info=True) #to inizialize self.scaler_fitted
+    def create_embedding_for_video(self, ft: dict, flags=False, positions=False, positions_normalized=False, geometric_info=False, k_positions_normalized=False,k_geometric_info=False,verbose=True ):
+        self.create_embedding(flags=True,positions=True, positions_normalized=True, geometric_info=True,k_positions_normalized=True ,k_geometric_info=True,verbose=verbose) #to inizialize self.scaler_fitted
         features_names = []
         if flags:
             features_names += ["flag_eye1", "flag_eye2", "flag_nose", "flag_mouth"]

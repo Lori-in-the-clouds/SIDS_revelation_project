@@ -1,52 +1,64 @@
 # SIDS DETECTOR
+<details>
+<summary>📖 Table of Contents</summary>
 
-## Project goal
-The goal of this computer vision project is to **monitor** infants while they are asleep in their crib and to detect potentially dangerous sleeping positions that may increase **the risk of Sudden Infant Death Syndrome (SIDS)**.
+- [🎯 Project Goal](#-project-goal)  
+- [❓ Problem Definition](#-problem-definition)  
+- [💡 Proposed Solution](#-proposed-solution)  
+- [🔄 System Workflow](#-system-workflow)  
+- [🧠 Computer Vision Model Pipeline](#-computer-vision-model-pipeline)  
+  - [🔍 YOLOv8 Face Detection](#-yolov8-face-detection-model)  
+  - [🏃 YOLOv8 Pose Estimation](#-yolov8-pose-estimation-model)  
+  - [🛠️ Feature Engineering & Embedding](#-feature-engineering--embedding)  
+  - [📊 XGBoost Classifier](#-xgboost-classifier)  
+- [🎥 Qualitative Results](#-qualitative-results)  
+- [📦 Installation](#-installation)  
+- [🚀 Running the Project](#-running-the-project)  
+- [🖼️ Output](#-output)
+</details>
 
-## Problem definition
-SIDS is strongly associated with situations in which a baby’s airways become obstructed during sleep.\
-The most critical risk factors involve the baby’s position:
-1. Prone position (lying face down) – highest risk of suffocation. 
-2. Side positions (lying on the left or right side) – increased risk if the baby’s mouth and nose are pressed against the mattress, pillow, or blanket.
+## 🎯 Project goal
+This project aims to develop a computer vision–based **monitoring system** to track infants while they sleep and detect potentially dangerous positions that may increase **the risk of Sudden Infant Death Syndrome (SIDS)**.
+## ❓Problem definition
+SIDS is strongly associated with situations in which a baby’s airways become obstructed during sleep.The sleeping position plays a critical role:
+- 🟥 **Prone position** (lying face down) – highest risk of suffocation. 
+- 🟧 **Side positions** (lying on the left or right side) – increased risk if the baby’s mouth and nose are pressed against the mattress, pillow, or blanket.
+- 🟩 **Supine position** (on the back, face up) → safest position, airways unobstructed.
 
-The safest position is the supine position (lying on the back, face up) with the mouth and nose unobstructed.
-
-\
 **In this project, we define:**
-- **Baby Safe**: all the frames in which the baby is in a safe sleeping position.
-- **Baby in Danger**: all the frames in which the baby assumes a potentially dangerous position.
+- **Baby Safe**: infant is in a safe sleeping position.
+- **Baby in Danger**: infant is in a potentially risky position.
 
-## Proposed solution
-The goal of this project is to develop a smart baby monitor that can be placed above the crib to continuously acquire video of the infant while sleeping. The system integrates a computer vision model capable of detecting potentially dangerous sleeping positions.
+## 💡 Proposed solution
+We aim to create a smart baby monitor positioned above the crib, continuously analyzing video frames in real time.
 
-At this stage of development, we focus specifically on the computer vision model, which is responsible for:
-- Analyzing video frames in real-time.
+At this stage of development, our focus is on the computer vision model, responsible for:
+- Analyzing video frames in real time.
 - Detecting the baby’s body pose and face features.
 - Classifying frames as "baby safe" or "baby in danger".
 
-Future steps will include integrating the model into a real monitoring device and connecting it to an alert system to notify parents when a dangerous posture is detected.
+➡️ Future work will integrate this into a real monitoring device, connected to an alert system to notify parents when a dangerous posture is detected.
 
-## Approach
+## 🔄 System Workflow
 Overall, the smart baby monitor works like this:
 ```mermaid
 flowchart TD
-  A[acquisition system placed above the crib] --> B[frame acquisition]
-  B --> C[frame preprocessing with CLHAE]
-  C --> D[model]
-  D --> G{inference}
-  G -->|Baby in danger| H[Alert mechanism]
-  G -->|Baby safe| I[Nothing to do]
+  A[Camera above crib] --> B[Frame acquisition]
+  B --> C[Preprocessing with CLAHE]
+  C --> D[Computer Vision Model]
+  D --> G{Inference}
+  G -->|Baby in danger| H[⚠️Alert]
+  G -->|Baby safe| I[✅No action]
 ```
 
-## Computer vision model pipeline
-As mentioned before, during this stage with focused on the computer vision model.
-Focusing on it, this is the processing pipleine:
+## 🧠 Computer vision model pipeline
+During this stage, we focused on the computer vision model, whose processing pipeline includes:
 ```mermaid
 flowchart TD
     A[Frame] --> |YOLOv8 face detection| B[Face features]
     A--> |YOLOv8 pose estimation| C[Pose features]
-    B--> |Features elaboration:\n angles and distances evaluation, normalization| D
-    C--> |Features elaboration:\n angles and distances evaluation, normalization| D
+    B--> |Feature elaboration:\n angles and distances evaluation, normalization| D
+    C--> |Feature elaboration:\n angles and distances evaluation, normalization| D
     D[Embedding with face and pose information]
     D-->|Processing with MLP| E[ Learned embedding ]
     E--> G[XGBoost classifier]
@@ -57,46 +69,79 @@ flowchart TD
     
 ```
 
-### YOLOv8 face detection model
-The first element of out pipeline is the YOLOv8 face detection model
-It was fine-tuned with https://app.roboflow.com/sids-project-3gvel/dataset_v3-hn7xa/1 after careful data augmentation.
+### 🔍 YOLOv8 face detection model
+The first element of our pipeline is the YOLOv8 face detection model
+It was fine-tuned with [this dataset](https://app.roboflow.com/sids-project-3gvel/dataset_v3-hn7xa/1) after careful data augmentation.
 
-### YOLOv8 pose estimation model
+### 🏃 YOLOv8 pose estimation model
 The second element of our pipeline is the YOLOv8 pose estimation model.
-It was fine-tuned with https://universe.roboflow.com/sids-project-3gvel/pose_estimation-merged-gdksv/dataset/1m after careful data augmentation.
+It was fine-tuned with [this dataset](https://universe.roboflow.com/sids-project-3gvel/pose_estimation-merged-gdksv/dataset/1m) after careful data augmentation.
 
 
-### Features elaboration and embedding with face and pose information
-Bounding boxes and keypoints inferred by previous models are used to create an 86 elements embedding containing handcrafted features:
-- flags, which represent presence of facial landmarks
-- facial landmarks positions
-- facial landmarks positions normalized wrt frame dimensions
-- additional facial information, evaluated geometrically: horizontal and vertical angle, width/height ration, eyes distance and mouth-nose distance
+### 🛠️ Feature Engineering & Embedding
+From YOLO outputs, we extract handcrafted features (86 total):
+- **Face-related**: landmark presence, normalized positions, geometric relations (angles, aspect ratios, eye-to-mouth distances).
+- **Pose-related**: normalized keypoints, distances between joints, torsion, and angles.
 
-- keypoints positions normalized wrt the body of the baby
-- additional pose information, evaluated geometrically: semantically meaningful distances between joints, body torsion, joints angles
+➡️ These features are passed through an MLP trained with Supervised Contrastive Loss, producing a 32-dimensional learned embedding.
 
-### From handcrafted to learned embeddings
-The handcrafted embeddings have been exhaustively analyzed basing on retrieval and classification metrics.
-After many attempts to improve their informational content, it was determined that the most efficient way is to pass them as input of a Multi Layer Perceptron trained with Supervised Contrastive Loss.
+### 📊 XGBoost classifier
+- Multiple classifiers were tested with hyperparameter optimization, and the best one was selected to predict “baby safe” or “baby in danger”.
+- XGBoost achieved the best balance of:
+	- ✅ High recall (especially for “baby in danger” cases).
+	- ✅ Strong accuracy.
+	- ✅ Low overfitting tendency.
 
-The input of the MLp is an embedding with 86 handcrafted features, the result is an embedding with 32 learned features.
+| | **precision** | **recall** | **f1-score** | **support** |
+| :--- | :---: | :---: | :---: | :---: |
+| **baby_safe** | 0.96 | 0.94 | 0.95 | 423 |
+| **baby_unsafe** | 0.94 | 0.96 | 0.95 | 409 |
+| | | | | |
+| **accuracy** | | | 0.95 | 832 |
+| **macro avg** | 0.95 | 0.95 | 0.95 | 832 |
+| **weighted avg**| 0.95 | 0.95 | 0.95 | 832 |
 
-### XGBoost classifier
-The last phase of the pipeline consists in the classifier that finally outputs the prediction "baby safe" or "baby in danger".
-Many classifiers have been trained and compared, hyperparameters optimization has been run and succesively the classifiers with the best performances was chosen.
+<img src="README_resources/confusion_matrix.png" width="40%">
 
-In particular, the chosen classifier is an XGBoost model with optimized hyperparameters
-It is the one which shows less overfitting trend, with a really high recall detecting "baby in danger"(given the sensible task) and with a high accuracy too.
-
-![best_classifiers_metrics.png](README_resources/best_classifiers_metrics.png)
-
-## Qualitative results
+## 🎥 Qualitative results
 ![Demo](README_resources/classification_demo.gif)
 
-
-Our model is frame based. It may be improved with some inter frames considerations to make the predictions more stable, anyway it is a good starting point for future refinements.
+Our model is frame-based. Future work may include inter-frame analysis to stabilize predictions, but this provides a solid foundation for further refinement.
 
 The demo video was AI generated using VEO.
 
+## 🔧 Installation
+
+### Requirements
+- Python 3.10+
+- [PyTorch](https://pytorch.org/get-started/locally/) (with CUDA support recommended)
+- Ultralytics YOLOv8
+- XGBoost
+- Scikit-learn
+- OpenCV
+- Numpy, Pandas, Matplotlib
+### Setup
+Clone the repository and install dependencies:
+- **For Cuda**
+    ```bash
+    git clone https://github.com/<your-username>/SIDS_revelation_project.git
+    cd SIDS_revelation_project.git
+    pip install -r cuda_requirements.txt
+    ```
+- **For Apple Silicon (Metal)**
+    ```bash
+    git clone https://github.com/<your-username>/SIDS_revelation_project.git
+    cd SIDS_revelation_project.git
+    pip install -r mps_requirements.txt
+    ```
+  
+## 🚀 Running the Project
+To run inference on an `.mp4` video:
+```bash
+python main.py --input data/sample_video.mp4 --output results/output_video.mp4
+```
+
+## 🖼️ Output
+The script generates a video with annotated bounding boxes and keypoints, saved to the `video/` folder. The processed video will be saved in the `/video_prediction/video/` folder with the name
+`namefile_pred_with_filters.mp4`, where namefile corresponds to the input filename.
 

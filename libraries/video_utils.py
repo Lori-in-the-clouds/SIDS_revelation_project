@@ -300,15 +300,16 @@ def process_video(input_video_path: str,
 def process_video_mlp(input_video_path: str,
                   builder,
                   clf,
-                model_mlp,
+                  model_mlp,
                   use_filters: bool = False,
                   show_confidences: bool = True,
                   show_all_boxes: bool = True,
                   show_all_kpt: bool = True,
                   default_fps: int = 20,
                   verbose: bool = False,
-                  upper_thresh=0.65, # decrease filter if above
-                  lower_thresh=0.35): # increase filter if below
+                  upper_thresh=0.65,
+                  lower_thresh=0.35,
+                  device='cpu'):
 
     def count_valid(kpts_set):
         """Count valid keypoints in a given set."""
@@ -460,12 +461,11 @@ def process_video_mlp(input_video_path: str,
         # --- Feature extraction & prediction ---
         train = builder.create_embedding_for_video(
             kpt, flags=True, positions=True, geometric_info=True, positions_normalized=True,
-            k_positions_normalized=True, k_geometric_info=True,
+            k_positions_normalized=True, k_geometric_info=True,verbose=verbose,
         ).reshape(1, -1)
 
         model_mlp.eval()
-        train = torch.tensor(train, dtype=torch.float32)
-
+        train = torch.tensor(train, dtype=torch.float32).to(device)
         train = model_mlp(train)
 
         pred = clf.predict(train.detach().cpu().numpy())[0]
