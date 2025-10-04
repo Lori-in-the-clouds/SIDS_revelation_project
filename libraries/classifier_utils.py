@@ -61,7 +61,7 @@ class Classifier:
         results = self.evaluation_pipeline(clf,verbose = verbose)
         return clf,results
 
-    def XGBC(self,verbose=True):
+    def XGBC(self,verbose=True, n_top_features= [25,10], shortAnalysis= False):
         clf = XGBClassifier(
             n_estimators=300,
             max_depth=5,
@@ -72,8 +72,16 @@ class Classifier:
             reg_alpha=0.5,
             random_state=None
         )
-        results = self.evaluation_pipeline(clf,verbose = verbose)
-        return clf,results
+        if not shortAnalysis:
+            results = self.evaluation_pipeline(clf,verbose = verbose, n_top_features= n_top_features)
+            return clf,results
+        if shortAnalysis:
+            clf_trained = clone(clf)
+
+            clf_trained.fit(self.X_train, self.y_train)
+            self.evaluate_metrics(clf_trained)
+            return
+
 
     def bagging(self,base_clf,verbose=True):
         clf = BaggingClassifier(
@@ -228,6 +236,7 @@ class Classifier:
 
         return importances, indices
 
+    '''
     def plot_learning_curve(self, clf, X_selected= None, verbose=True ):
         X = X_selected if X_selected is not None else self.X
 
@@ -255,6 +264,7 @@ class Classifier:
 
 
         return train_sizes,train_scores,test_scores,train_mean,test_mean
+    '''
 
     def optimize_model(self,model, param_grid,verbose=True):
 
@@ -675,7 +685,7 @@ class Classifier:
         return embeddings_current, history
 
 
-    def plot_learning_curve_loss_curve(self, clf, X_selected=None, verbose=True):
+    def plot_learning_curve(self, clf, X_selected=None, verbose=True):
         X = X_selected if X_selected is not None else self.X
 
         # ---- accuracy ----
@@ -747,7 +757,7 @@ class Classifier:
             importances, indices = self.plot_feature_importance(clf_trained, verbose=verbose)
 
         if verbose:
-            self.plot_learning_curve_loss_curve(clf_trained)
+            self.plot_learning_curve(clf_trained)
             self.evaluate_metrics(clf_trained)
 
         results = {

@@ -232,8 +232,8 @@ class ImageRetrieval:
             plt.axvline(sample_scores.mean(), color="red", linestyle="--", label=f"Mean = {silhouette_score_value:.3f}")
             plt.xlabel("Silhouette coefficient")
             plt.xlim(-1, 1)
-            plt.ylabel("Numero di campioni")
-            plt.title("Distribuzione Silhouette score per classe")
+            plt.ylabel("Number of samples")
+            plt.title("Silhouette score distribution per class")
             plt.legend()
             plt.grid(True, linestyle="--", alpha=0.6)
             plt.show()
@@ -273,6 +273,8 @@ class ImageRetrieval:
 
         plt.scatter(proj[:, 0], proj[:, 1], c=self.labels, s=6, cmap=cmap)
         plt.legend(handles=legend_elements, title="Labels", loc="best")
+        plt.title(f"Embedding space visualized using UMAP ({self.embeddings.shape[1]}D → 2D)")
+
         plt.show()
 
     def plot_lda(self):
