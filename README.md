@@ -2,6 +2,7 @@
 <details>
 <summary>📖 Table of Contents</summary>
 
+
 - [🎯 Project Goal](#-project-goal)  
 - [❓ Problem Definition](#-problem-definition)  
 - [💡 Proposed Solution](#-proposed-solution)  
