@@ -1,8 +1,4 @@
 # SIDS DETECTOR
-
-![Demo](README_resources/classification_demo.gif)
-The demo video was AI generated using VEO.
-
 <details>
 <summary>📖 Table of Contents</summary>
 
