@@ -1,6 +1,7 @@
 # SIDS DETECTOR
+![Demo](README_resources/introduction.gif)
 <details>
-<summary>📖 Table of Contents</summary>
+<summary><h3>📖 Table of Contents</h3></summary>
 
 
 - [🎯 Project Goal](#-project-goal)  
