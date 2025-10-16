@@ -1,8 +1,7 @@
 # SIDS DETECTOR
 ![Demo](README_resources/introduction.gif)
 <details>
-<summary><h3>📖 Table of Contents</h3></summary>
-
+<summary><span style="font-size: 1.4em; font-weight: 600;">📖 Table of Contents</span></summary>
 
 - [🎯 Project Goal](#-project-goal)  
 - [❓ Problem Definition](#-problem-definition)  
