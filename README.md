@@ -1,10 +1,7 @@
 # SIDS DETECTOR
-
-![Demo](README_resources/classification_demo.gif)
-The demo video was AI generated using VEO.
-
+![Demo](README_resources/introduction.gif)
 <details>
-<summary>📖 Table of Contents</summary>
+<summary><span style="font-size: 2em; font-weight: 600;">📖 Table of Contents</span></summary>
 
 - [🎯 Project Goal](#-project-goal)  
 - [❓ Problem Definition](#-problem-definition)  
@@ -109,6 +106,8 @@ From YOLO outputs, we extract handcrafted features (86 total):
 
 ## 🎥 Qualitative results
 ![Demo](README_resources/classification_demo.gif)
+
+
 The demo video was AI generated using VEO.
 
 Our model is frame-based. Future work may include inter-frame analysis to stabilize predictions, but this provides a solid foundation for further refinement.
