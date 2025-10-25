@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.metrics import silhouette_samples
-
+from numpy.linalg import inv, pinv
+from sklearn.covariance import LedoitWolf
 from matplotlib.lines import Line2D
 
 class ImageRetrieval:
@@ -240,26 +241,6 @@ class ImageRetrieval:
             print(f"Silhouette score ({metric}): {silhouette_score_value:.3f}")
         return silhouette_score_value
 
-    def plot_tsne(self):
-        tsne = TSNE(n_components=2, perplexity=30, random_state=42)
-        X_tsne = tsne.fit_transform(self.embeddings)
-
-        plt.figure(figsize=self.figsize)
-
-        # maschere per le due classi
-        mask_safe = (self.labels == self.classes_bs["baby_safe"])
-        mask_unsafe = (self.labels == self.classes_bs["baby_unsafe"])
-
-        # scatter separati per avere legenda chiara
-        plt.scatter(X_tsne[mask_safe, 0], X_tsne[mask_safe, 1],
-                    c="blue", alpha=0.7, label="baby_safe")
-        plt.scatter(X_tsne[mask_unsafe, 0], X_tsne[mask_unsafe, 1],
-                    c="red", alpha=0.7, label="baby_unsafe")
-
-        plt.legend()
-        plt.title(f"t-SNE degli embedding ({self.embeddings.shape[1]}D → 2D)")
-        plt.show()
-
     def plot_umap(self):
         reducer = umap.UMAP(n_components=2, random_state=42)
         proj = reducer.fit_transform(self.embeddings_norm)
@@ -276,32 +257,6 @@ class ImageRetrieval:
         plt.title(f"Embedding space visualized using UMAP ({self.embeddings.shape[1]}D → 2D)")
 
         plt.show()
-
-    def plot_lda(self):
-        labels = np.array(self.labels, dtype=int)
-
-        # LDA con 1 componente (2 classi → 1 dimensione)
-        lda = LDA(n_components=1)
-        X_lda = lda.fit_transform(self.embeddings, labels)
-
-        plt.figure(figsize=self.figsize)
-
-        # istogrammi separati per le due classi
-        mask_safe = (self.labels == self.classes_bs["baby_safe"])
-        mask_unsafe = (self.labels == self.classes_bs["baby_unsafe"])
-
-        plt.hist(X_lda[mask_safe], bins=30, alpha=0.7, color="blue",
-                 label="baby_safe")
-        plt.hist(X_lda[mask_unsafe], bins=30, alpha=0.7, color="red",
-                 label="baby_unsafe")
-
-        plt.xlabel("LDA Component 1")
-        plt.title(f"Distribuzione LDA degli embedding ({self.embeddings.shape[1]}D → 1D)")
-        plt.legend()
-        plt.show()
-
-    from numpy.linalg import inv, pinv
-    from sklearn.covariance import LedoitWolf
 
     def build_mahalanobis_index(self, pca_dim=None, use_pinv=False):
         """
