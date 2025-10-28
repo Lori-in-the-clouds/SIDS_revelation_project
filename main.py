@@ -65,7 +65,8 @@ def main():
                                                   default_fps=60,
                                                   upper_thresh=0.65,
                                                   lower_thresh=0.35,
-                                                  device=device)
+                                                  device=device,
+                      show_while_processing=False)
     print("Video prediction finished successfully!✅")
 
 if __name__ == "__main__":

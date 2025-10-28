@@ -309,7 +309,8 @@ def process_video_mlp(input_video_path: str,
                   verbose: bool = False,
                   upper_thresh=0.65,
                   lower_thresh=0.35,
-                  device='cpu'):
+                  device='cpu',
+                  show_while_processing = True    ):
 
     def count_valid(kpts_set):
         """Count valid keypoints in a given set."""
@@ -476,7 +477,8 @@ def process_video_mlp(input_video_path: str,
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         # Write frame to output
-        cv2.imshow("Video Prediction", frame)
+        if show_while_processing:
+            cv2.imshow("Video Prediction", frame)
         out.write(frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
