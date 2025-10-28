@@ -44,33 +44,47 @@ def create_embeddings(project_dir,image_dataset_path,model_path_fd,model_path_pe
     return model_mlp,emb_builder,clf
 
 def main():
+    import argparse
+    import os
+    import sys
+
+    # Controllo automatico se siamo in Colab
+    try:
+        import google.colab
+        colab_env = True
+    except ImportError:
+        colab_env = False
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", type=str, required=True, help="Input video or image path")
     args = parser.parse_args()
+
     project_dir = f"{os.getcwd().split('SIDS_revelation_project')[0]}SIDS_revelation_project/"
     model_path_pe = f"{project_dir}/models/2.pe_weights/best.pt"
     image_dataset_path = f"{project_dir}datasets/onback_onstomach_v3"
     model_path_fd = f"{project_dir}/models/4.fd_weights/best.pt"
 
     device = find_device()
-    model_mlp, emb_builder, clf = create_embeddings(project_dir,image_dataset_path, model_path_fd, model_path_pe, device)
+    model_mlp, emb_builder, clf = create_embeddings(project_dir, image_dataset_path, model_path_fd, model_path_pe, device)
+
     process_video_mlp(input_video_path=args.input,
-                                                builder=emb_builder,
-                                                model_mlp=model_mlp,
-                                                  clf=clf,
-                                                  use_filters=True,
-                                                  show_all_boxes=True,
-                                                  show_all_kpt=True,
-                                                  show_confidences=True,
-                                                  default_fps=60,
-                                                  upper_thresh=0.65,
-                                                  lower_thresh=0.35,
-                                                  device=device,
-                      show_while_processing=False)
+                      builder=emb_builder,
+                      model_mlp=model_mlp,
+                      clf=clf,
+                      use_filters=True,
+                      show_all_boxes=True,
+                      show_all_kpt=True,
+                      show_confidences=True,
+                      default_fps=60,
+                      upper_thresh=0.65,
+                      lower_thresh=0.35,
+                      device=device,
+                      colab=colab_env)
+
     print("Video prediction finished successfully!✅")
+
 
 if __name__ == "__main__":
     main()
-
 
 

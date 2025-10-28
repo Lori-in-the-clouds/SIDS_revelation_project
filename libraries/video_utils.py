@@ -298,39 +298,47 @@ def process_video(input_video_path: str,
 
 
 def process_video_mlp(input_video_path: str,
-                  builder,
-                  clf,
-                  model_mlp,
-                  use_filters: bool = False,
-                  show_confidences: bool = True,
-                  show_all_boxes: bool = True,
-                  show_all_kpt: bool = True,
-                  default_fps: int = 20,
-                  verbose: bool = False,
-                  upper_thresh=0.65,
-                  lower_thresh=0.35,
-                  device='cpu',
-                  show_while_processing = True    ):
+                      builder,
+                      clf,
+                      model_mlp,
+                      use_filters: bool = False,
+                      show_confidences: bool = True,
+                      show_all_boxes: bool = True,
+                      show_all_kpt: bool = True,
+                      default_fps: int = 20,
+                      verbose: bool = False,
+                      upper_thresh=0.65,
+                      lower_thresh=0.35,
+                      device='cpu',
+                      colab: bool = False):  # <-- parametro colab esplicito
+
+    import cv2
+    import numpy as np
+    from collections import deque
+    import torch
+    import os
+
+    # Se Colab, import cv2_imshow
+    if colab:
+        from google.colab.patches import cv2_imshow
 
     def count_valid(kpts_set):
-        """Count valid keypoints in a given set."""
         return sum(1 for k in kpts_set if k in kpt and kpt[k] != (-1, -1))
 
-    #Open video
+    # Apri video
     cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened():
-        raise ValueError(f"Error opening video: {input_video_path}")
+        raise ValueError(f"Errore nell'aprire il video: {input_video_path}")
 
     base, _ = os.path.splitext(input_video_path)
     suffix = "_pred_with_filters.mp4" if use_filters else "_pred_without_filters.mp4"
     output_video_path = base + suffix
 
-    # Get video properties
-    frame_width, frame_height, fps = get_video_properties(cap)
-    fps = min(fps, default_fps)
+    frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = min(cap.get(cv2.CAP_PROP_FPS), default_fps)
     print(f"FPS processing: {fps}")
 
-    # Video writer
     out = cv2.VideoWriter(
         output_video_path,
         cv2.VideoWriter_fourcc(*'mp4v'),
@@ -338,13 +346,12 @@ def process_video_mlp(input_video_path: str,
         (frame_width, frame_height)
     )
 
-    # Keypoint colors for drawing
     keypoint_colors = {
-        "eye": (255, 165, 0),       # orange
-        "nose": (127, 255, 212),    # aqua green
-        "mouth": (255, 0, 255),     # fuchsia
-        "head": (0, 50, 200),     # blue
-        "left_shoulder": (0, 0, 255), # red
+        "eye": (255, 165, 0),
+        "nose": (127, 255, 212),
+        "mouth": (255, 0, 255),
+        "head": (0, 50, 200),
+        "left_shoulder": (0, 0, 255),
         "right_shoulder": (0, 0, 255),
         "left_hip": (0, 0, 255),
         "right_hip": (0, 0, 255),
@@ -354,14 +361,8 @@ def process_video_mlp(input_video_path: str,
         "right_ankle": (0, 0, 255)
     }
 
-    # Keypoints required for counting
-    required_kpts = {  "eye", "head", "nose", "mouth",
-                        "eye1", "eye2","left_shoulder", "right_shoulder",
-                        "left_hip", "right_hip",
-                        "left_knee", "right_knee",
-                        "left_ankle", "right_ankle"}
     history = deque(maxlen=25)
-    level = 0  # per i filtri
+    level = 0
     boxes_per_frame = []
     keypoints_per_frame = []
 
@@ -370,17 +371,14 @@ def process_video_mlp(input_video_path: str,
         if not ret:
             break
 
-        # --- Apply adaptive filter if enabled ---
         if use_filters and level > 0:
             frame = enhance_contrast_brightness(frame, level)
             if verbose:
                 print(f"🔧 Applying filter level {level}")
 
-        # --- Prediction YOLO ---
         results1 = builder.model_fd(frame, conf=0.3, verbose=False)[0]
         results2 = builder.model_pe(frame, conf=0.3, verbose=False)[0]
 
-        #Extract keypoints from face detection and pose estimation
         kpt_fe = builder.features_extractor(results1.boxes)
         kpt_pe = builder.features_extractor_keypoints(results2)
         kpt = {**kpt_fe, **kpt_pe}
@@ -394,28 +392,23 @@ def process_video_mlp(input_video_path: str,
             if k not in kpt:
                 kpt[k] = (-1, -1)
 
-        # --- Count valid bounding boxes and keypoints ---
         required_boxes = ["eye", "head", "nose", "mouth"]
-
         count_valid_boxes = sum(1 for k in required_boxes if k in kpt and kpt[k] != (-1, -1))
         boxes_per_frame.append(count_valid_boxes)
 
         required_kpts = ["left_shoulder", "right_shoulder",
-            "left_elbow", "right_elbow","left_wrist", "right_wrist","left_hip", "right_hip",
-            "left_knee", "right_knee","left_ankle", "right_ankle","left_ear", "right_ear"]
-
+                         "left_elbow", "right_elbow","left_wrist", "right_wrist",
+                         "left_hip", "right_hip", "left_knee", "right_knee",
+                         "left_ankle", "right_ankle","left_ear", "right_ear"]
         num_valid_keypoints = sum(1 for k in required_kpts if kpt[k] != (-1, -1))
         keypoints_per_frame.append(num_valid_keypoints)
 
-        # --- Adaptive filter score ---
         if use_filters:
-            # Compute brightness and contrast
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             brightness_norm = np.mean(gray) / 255
             contrast_norm = np.std(gray) / 127
             visual_score = (brightness_norm + contrast_norm) / 2
 
-            # Keypoint score with more weight to critical points
             critical = {"head"}
             weight_critical = 4
             secondary = {"left_hip", "right_hip"}
@@ -425,26 +418,18 @@ def process_video_mlp(input_video_path: str,
 
             keypoint_score = (weight_critical * count_valid(critical) +
                              weight_secondary * count_valid(secondary) +
-                            weight_others * count_valid(others)) / (weight_critical * len(critical) + weight_secondary * len(secondary) + weight_others * len(others))
+                             weight_others * count_valid(others)) / (
+                                 weight_critical * len(critical) + weight_secondary * len(secondary) + weight_others * len(others))
 
-            # Final frame score: weighted combination
             frame_score = 0.75 * keypoint_score + 0.25 * visual_score
-
-            # Update history and compute weighted averagey
             history.append(frame_score)
             success_rate = np.average(history, weights=np.linspace(0.1, 1.0, len(history)))
 
-            # --- Hysteresis thresholds ---
             if success_rate > upper_thresh and level > 0:
-                    if verbose:
-                        print(f"Buoni box frequenti ({success_rate*100:.1f}%) → disattivo filtro")
-                    level = max(0, level - 1)
+                level = max(0, level - 1)
             elif success_rate < lower_thresh and level < 3:
-                if verbose:
-                    print(f"Success rate basso ({success_rate*100:.1f}%) → aumento filtro a livello {level}")
                 level = min(3, level + 1)
 
-        # --- Draw bounding boxes and keypoints ---
         if show_all_boxes:
             draw_bounding_boxes(frame, results1, builder, keypoint_colors, show_all_boxes, show_confidences)
 
@@ -454,12 +439,10 @@ def process_video_mlp(input_video_path: str,
             "left_wrist", "right_wrist", "left_hip", "right_hip",
             "left_knee", "right_knee", "left_ankle", "right_ankle"
         ]
-
         keypoints_list = [kpt.get(k, None) if kpt.get(k, (-1, -1)) != (-1, -1) else None for k in keypoints_order]
         if show_all_kpt:
             frame = draw_keypoints_on_frame(frame, keypoints_list, number=False)
 
-        # --- Feature extraction & prediction ---
         train = builder.create_embedding_for_video(
             kpt, flags=True, positions=True, geometric_info=True, positions_normalized=True,
             k_positions_normalized=True, k_geometric_info=True,verbose=verbose,
@@ -473,22 +456,26 @@ def process_video_mlp(input_video_path: str,
         prob = clf.predict_proba(train.detach().cpu().numpy())[0][np.where(clf.classes_ == pred)[0][0]] if hasattr(clf,"predict_proba") else 1.0
 
         label_text = f"{'Safe' if pred == 0 else 'In Danger'} ({prob * 100:.1f}%)"
-        color = (0, 255, 0) if (("Safe" in label_text) or ("Safe" in label_text)) else (0, 0, 255)
+        color = (0, 255, 0) if pred == 0 else (0, 0, 255)
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-        # Write frame to output
-        if show_while_processing:
+        # Visualizzazione
+        if colab:
+            cv2_imshow(frame)
+        else:
             cv2.imshow("Video Prediction", frame)
-        out.write(frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
-    # Release resources
+        out.write(frame)
+
     cap.release()
     out.release()
-    cv2.destroyAllWindows()
+    if not colab:
+        cv2.destroyAllWindows()
 
     return boxes_per_frame + keypoints_per_frame
+
 
 # ===============================
 # Stats & Visualization Helpers
