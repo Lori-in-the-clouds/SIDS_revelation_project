@@ -126,24 +126,29 @@ Our model is frame-based. Future work may include inter-frame analysis to stabil
 Clone the repository and install dependencies:
 - **For Cuda**
     ```bash
-    git clone https://github.com/<your-username>/SIDS_revelation_project.git
-    cd SIDS_revelation_project.git
+    git clone https://github.com/Lori-in-the-clouds/SIDS_revelation_project.git
     pip install -r cuda_requirements.txt
     ```
 - **For Apple Silicon (Metal)**
     ```bash
-    git clone https://github.com/<your-username>/SIDS_revelation_project.git
-    cd SIDS_revelation_project.git
+    git clone https://github.com/Lori-in-the-clouds/SIDS_revelation_project.git
     pip install -r mps_requirements.txt
     ```
+  
+- **For Linux without GPU**
+```bash
+    git clone https://github.com/Lori-in-the-clouds/SIDS_revelation_project.git
+    conda create -n nome_ambiente python=3.10.19
+   pip install -r linux_requirements.txt
+```
   
 ## 🚀 Running the Project
 To run inference on an `.mp4` video:
 ```bash
-python main.py --input data/sample_video.mp4 --output results/output_video.mp4
+python main.py --input data/sample_video.mp4
 ```
 
 ## 🖼️ Output
-The script generates a video with annotated bounding boxes and keypoints, saved to the `video/` folder. The processed video will be saved in the `/video_prediction/video/` folder with the name
+The script generates a video with annotated bounding boxes and keypoints, saved in the same location where the input file is with the name
 `namefile_pred_with_filters.mp4`, where namefile corresponds to the input filename.
 
