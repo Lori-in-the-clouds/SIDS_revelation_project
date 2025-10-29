@@ -296,7 +296,6 @@ def process_video(input_video_path: str,
 
     return boxes_per_frame + keypoints_per_frame
 
-
 def process_video_mlp(input_video_path: str,
                       builder,
                       clf,
@@ -317,17 +316,22 @@ def process_video_mlp(input_video_path: str,
     from collections import deque
     import torch
     import os
+
+    # 👇 usa la versione giusta di tqdm a seconda del contesto
     if colab:
+        from tqdm.notebook import tqdm
         from google.colab.patches import cv2_imshow
+    else:
+        from tqdm import tqdm
 
     def count_valid(kpts_set):
         return sum(1 for k in kpts_set if k in kpt and kpt[k] != (-1, -1))
 
-    # Apri video
     cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened():
         raise ValueError(f"Errore nell'aprire il video: {input_video_path}")
 
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     base, _ = os.path.splitext(input_video_path)
     suffix = "_pred_with_filters.mp4" if use_filters else "_pred_without_filters.mp4"
     output_video_path = base + suffix
@@ -364,6 +368,7 @@ def process_video_mlp(input_video_path: str,
     boxes_per_frame = []
     keypoints_per_frame = []
 
+    iterator = tqdm(total=total_frames, desc="🎥 Video processing", position=0, leave=True)
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -371,8 +376,6 @@ def process_video_mlp(input_video_path: str,
 
         if use_filters and level > 0:
             frame = enhance_contrast_brightness(frame, level)
-            if verbose:
-                print(f"🔧 Applying filter level {level}")
 
         results1 = builder.model_fd(frame, conf=0.3, verbose=False)[0]
         results2 = builder.model_pe(frame, conf=0.3, verbose=False)[0]
@@ -382,10 +385,10 @@ def process_video_mlp(input_video_path: str,
         kpt = {**kpt_fe, **kpt_pe}
 
         expected_kpts = [
-            "eye1", "eye2", "nose", "mouth", "head","left_shoulder", "right_shoulder",
-            "left_elbow", "right_elbow","left_wrist", "right_wrist","left_hip", "right_hip",
-            "left_knee", "right_knee","left_ankle", "right_ankle"]
-
+            "eye1", "eye2", "nose", "mouth", "head", "left_shoulder", "right_shoulder",
+            "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip",
+            "left_knee", "right_knee", "left_ankle", "right_ankle"
+        ]
         for k in expected_kpts:
             if k not in kpt:
                 kpt[k] = (-1, -1)
@@ -394,10 +397,10 @@ def process_video_mlp(input_video_path: str,
         count_valid_boxes = sum(1 for k in required_boxes if k in kpt and kpt[k] != (-1, -1))
         boxes_per_frame.append(count_valid_boxes)
 
-        required_kpts = ["left_shoulder", "right_shoulder",
-                         "left_elbow", "right_elbow","left_wrist", "right_wrist",
-                         "left_hip", "right_hip", "left_knee", "right_knee",
-                         "left_ankle", "right_ankle","left_ear", "right_ear"]
+        required_kpts = ["left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+                         "left_wrist", "right_wrist", "left_hip", "right_hip",
+                         "left_knee", "right_knee", "left_ankle", "right_ankle",
+                         "left_ear", "right_ear"]
         num_valid_keypoints = sum(1 for k in required_kpts if kpt[k] != (-1, -1))
         keypoints_per_frame.append(num_valid_keypoints)
 
@@ -406,23 +409,19 @@ def process_video_mlp(input_video_path: str,
             brightness_norm = np.mean(gray) / 255
             contrast_norm = np.std(gray) / 127
             visual_score = (brightness_norm + contrast_norm) / 2
-
             critical = {"head"}
             weight_critical = 4
             secondary = {"left_hip", "right_hip"}
             weight_secondary = 0.5
-            others = {"left_hip", "right_hip","left_knee", "right_knee", "left_ankle", "right_ankle"}
+            others = {"left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"}
             weight_others = 0.3
-
             keypoint_score = (weight_critical * count_valid(critical) +
-                             weight_secondary * count_valid(secondary) +
-                             weight_others * count_valid(others)) / (
-                                 weight_critical * len(critical) + weight_secondary * len(secondary) + weight_others * len(others))
-
+                              weight_secondary * count_valid(secondary) +
+                              weight_others * count_valid(others)) / (
+                              weight_critical * len(critical) + weight_secondary * len(secondary) + weight_others * len(others))
             frame_score = 0.75 * keypoint_score + 0.25 * visual_score
             history.append(frame_score)
             success_rate = np.average(history, weights=np.linspace(0.1, 1.0, len(history)))
-
             if success_rate > upper_thresh and level > 0:
                 level = max(0, level - 1)
             elif success_rate < lower_thresh and level < 3:
@@ -442,39 +441,37 @@ def process_video_mlp(input_video_path: str,
             frame = draw_keypoints_on_frame(frame, keypoints_list, number=False)
 
         train = builder.create_embedding_for_video(
-            kpt, flags=True, positions=True, geometric_info=True, positions_normalized=True,
-            k_positions_normalized=True, k_geometric_info=True,verbose=verbose,
+            kpt, flags=True, positions=True, geometric_info=True,
+            positions_normalized=True, k_positions_normalized=True,
+            k_geometric_info=True, verbose=verbose
         ).reshape(1, -1)
 
         model_mlp.eval()
         train = torch.tensor(train, dtype=torch.float32).to(device)
         train = model_mlp(train)
-
         pred = clf.predict(train.detach().cpu().numpy())[0]
-        prob = clf.predict_proba(train.detach().cpu().numpy())[0][np.where(clf.classes_ == pred)[0][0]] if hasattr(clf,"predict_proba") else 1.0
+        prob = clf.predict_proba(train.detach().cpu().numpy())[0][np.where(clf.classes_ == pred)[0][0]] if hasattr(clf, "predict_proba") else 1.0
 
         label_text = f"{'Safe' if pred == 0 else 'In Danger'} ({prob * 100:.1f}%)"
         color = (0, 255, 0) if pred == 0 else (0, 0, 255)
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-        # Visualizzazione
         if not colab:
             cv2.imshow("Video Prediction", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
         out.write(frame)
+        iterator.update(1)
 
     cap.release()
     out.release()
+    iterator.close()
+
     if not colab:
         cv2.destroyAllWindows()
 
-    if colab:
-        return output_video_path
-    else:
-        return boxes_per_frame + keypoints_per_frame
-
+    return output_video_path if colab else boxes_per_frame + keypoints_per_frame
 
 # ===============================
 # Stats & Visualization Helpers
