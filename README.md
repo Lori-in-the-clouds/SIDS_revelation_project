@@ -136,11 +136,11 @@ Clone the repository and install dependencies:
     ```
   
 - **For Linux without GPU**
-```bash
-    git clone https://github.com/Lori-in-the-clouds/SIDS_revelation_project.git
-    conda create -n nome_ambiente python=3.10.19
-   pip install -r linux_requirements.txt
-```
+    ```bash
+        git clone https://github.com/Lori-in-the-clouds/SIDS_revelation_project.git
+        conda create -n nome_ambiente python=3.10.19
+       pip install -r linux_requirements.txt
+    ```
 
 ### Test it running inference on an .mp4 video
 To run inference on an `.mp4` video:
