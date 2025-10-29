@@ -317,12 +317,14 @@ def process_video_mlp(input_video_path: str,
     import torch
     import os
 
-    # 👇 usa la versione giusta di tqdm a seconda del contesto
     if colab:
         from tqdm.notebook import tqdm
         from google.colab.patches import cv2_imshow
     else:
         from tqdm import tqdm
+
+    print("")
+    print("Video processing".ljust(90, '-'))
 
     def count_valid(kpts_set):
         return sum(1 for k in kpts_set if k in kpt and kpt[k] != (-1, -1))
@@ -339,7 +341,8 @@ def process_video_mlp(input_video_path: str,
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = min(cap.get(cv2.CAP_PROP_FPS), default_fps)
-    print(f"FPS processing: {fps}")
+
+    print(f"Video processing at {fps} FPS ")
 
     out = cv2.VideoWriter(
         output_video_path,
@@ -470,6 +473,7 @@ def process_video_mlp(input_video_path: str,
 
     if not colab:
         cv2.destroyAllWindows()
+    print("".ljust(90, '-'))
 
     return output_video_path if colab else boxes_per_frame + keypoints_per_frame
 
