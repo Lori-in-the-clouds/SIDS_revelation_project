@@ -221,9 +221,9 @@ class EmbeddingBuilder:
             return {name: (-1, -1) for name in keypoint_names}
 
         else:
-            conf = prediction.keypoints.conf.numpy()[0].reshape(-1, 1).T
+            conf = prediction.keypoints.conf.cpu().numpy()[0].reshape(-1, 1).T
             #data_xy = prediction.keypoints.xy.numpy()[0].T
-            data_xyn = prediction.keypoints.xyn.numpy()[0].T
+            data_xyn = prediction.keypoints.xyn.cpu().numpy()[0].T
 
             merged = np.vstack((data_xyn, conf))
             keypoints = pd.DataFrame(merged, index=["x", "y", "conf"], columns=keypoint_names)
