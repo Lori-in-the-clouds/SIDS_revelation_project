@@ -152,8 +152,7 @@ The script generates a video with annotated bounding boxes and keypoints, saved 
 
 ### 🎬 Example Input Video
 To test the model, you can use this example input video:  
-▶️ [`sample_video.mp4`](video_prediction/video/baby_1.mp4)
-
+🎬 [⬇️ Download sample_video.mp4](https://github.com/Lori-in-the-clouds/SIDS_revelation_project/raw/main/video_prediction/video/baby_1.mp4)  
 This short clip simulates a sleeping infant transitioning between different positions. You can replace it with your own `.mp4` file for testing.
 
 ## 🚀 Do you want to play with a Google Colab demo online? Let's do it!
