@@ -112,7 +112,7 @@ The demo video was AI generated using VEO.
 
 Our model is frame-based. Future work may include inter-frame analysis to stabilize predictions, but this provides a solid foundation for further refinement.
 
-## 🔧 Installation
+## 🔧 Do you want to work on it locally? Let's set up the project!
 
 ### Requirements
 - Python 3.10+
@@ -141,14 +141,16 @@ Clone the repository and install dependencies:
     conda create -n nome_ambiente python=3.10.19
    pip install -r linux_requirements.txt
 ```
-  
-## 🚀 Running the Project
+
+### Test it running inference on an .mp4 video
 To run inference on an `.mp4` video:
 ```bash
 python main.py --input data/sample_video.mp4
 ```
-
-## 🖼️ Output
 The script generates a video with annotated bounding boxes and keypoints, saved in the same location where the input file is with the name
 `namefile_pred_with_filters.mp4`, where namefile corresponds to the input filename.
 
+
+## 🚀 Do you want to play with a Google Colab demo online? Let's do it!
+Open ... with Google Colab and upload your video...that easy.
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github.com/Lori-in-the-clouds/SIDS_revelation_project/colab_demo.ipynb)
