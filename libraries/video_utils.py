@@ -9,9 +9,8 @@ import torch
 def draw_keypoints_on_frame(img, keypoints_list, number: bool = False, thickness_line=2, thickness_point=3):
     h, w = img.shape[:2]
 
-    skeleton = [(0, 6),(0, 5),(6,8),(0,1),(0,2),(6,5),(6,4),(5,3),(4,2),(3,1),
-                (6,12),(5,7),(5,11),(7,9),(8,10),(12,11),(12,14),(14,16),(11,13),(13,15)]
-
+    skeleton = [(0, 6), (0, 5), (6, 8), (0, 1), (0, 2), (6, 5), (6, 4), (5, 3), (4, 2), (3, 1),
+                (6, 12), (5, 7), (5, 11), (7, 9), (8, 10), (12, 11), (12, 14), (14, 16), (11, 13), (13, 15)]
 
     # Disegna punti
     for idx, kp in enumerate(keypoints_list):
@@ -30,11 +29,14 @@ def draw_keypoints_on_frame(img, keypoints_list, number: bool = False, thickness
             x2, y2 = int(keypoints_list[end][0] * w), int(keypoints_list[end][1] * h)
 
             # colori scheletro
-            if (start == 6 and end == 5) or (start == 6 and end == 12) or (start == 5 and end == 11) or (start == 12 and end == 11):
+            if (start == 6 and end == 5) or (start == 6 and end == 12) or (start == 5 and end == 11) or (
+                    start == 12 and end == 11):
                 color = (255, 0, 255)
-            elif (start == 12 and end == 14) or (start == 11 and end == 13) or (start == 14 and end == 16) or (start == 13 and end == 15):
+            elif (start == 12 and end == 14) or (start == 11 and end == 13) or (start == 14 and end == 16) or (
+                    start == 13 and end == 15):
                 color = (0, 165, 255)
-            elif (start == 6 and end == 8) or (start == 8 and end == 10) or (start == 5 and end == 7) or (start == 7 and end == 9):
+            elif (start == 6 and end == 8) or (start == 8 and end == 10) or (start == 5 and end == 7) or (
+                    start == 7 and end == 9):
                 color = (0, 255, 0)
             else:
                 color = (0, 255, 255)
@@ -51,26 +53,27 @@ def apply_clahe(frame):
     lab = cv2.cvtColor(frame, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
 
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     l_clahe = clahe.apply(l)
 
     merged = cv2.merge((l_clahe, a, b))
     return cv2.cvtColor(merged, cv2.COLOR_LAB2BGR)
 
-def enhance_contrast_brightness(frame,level):
 
+def enhance_contrast_brightness(frame, level):
     frame = apply_clahe(frame)
 
     if level == 1:
-        alpha, beta = 1.1, 10   # Poco contrasto, poca luce
+        alpha, beta = 1.1, 10  # Poco contrasto, poca luce
     elif level == 2:
-        alpha, beta = 1.5, 30   # Medio contrasto/luminosità
+        alpha, beta = 1.5, 30  # Medio contrasto/luminosità
     elif level == 3:
-        alpha, beta = 5.0, 50   # Più aggressivo
+        alpha, beta = 5.0, 50  # Più aggressivo
     else:
         raise ValueError("level must be 1, 2, or 3")
 
     return cv2.convertScaleAbs(frame, alpha=alpha, beta=beta)
+
 
 # ===============================
 # Utility functions
@@ -107,6 +110,7 @@ def draw_bounding_boxes(frame, results, builder, keypoint_colors, show_all_boxes
         )
     return frame
 
+
 # ===============================
 # Video processing (generalized)
 # ===============================
@@ -120,14 +124,14 @@ def process_video(input_video_path: str,
                   show_all_kpt: bool = True,
                   default_fps: int = 20,
                   verbose: bool = False,
-                  upper_thresh=0.65, # decrease filter if above
-                  lower_thresh=0.35): # increase filter if below
+                  upper_thresh=0.65,  # decrease filter if above
+                  lower_thresh=0.35):  # increase filter if below
 
     def count_valid(kpts_set):
         """Count valid keypoints in a given set."""
         return sum(1 for k in kpts_set if k in kpt and kpt[k] != (-1, -1))
 
-    #Open video
+    # Open video
     cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened():
         raise ValueError(f"Error opening video: {input_video_path}")
@@ -151,11 +155,11 @@ def process_video(input_video_path: str,
 
     # Keypoint colors for drawing
     keypoint_colors = {
-        "eye": (255, 165, 0),       # orange
-        "nose": (127, 255, 212),    # aqua green
-        "mouth": (255, 0, 255),     # fuchsia
-        "head": (0, 50, 200),     # blue
-        "left_shoulder": (0, 0, 255), # red
+        "eye": (255, 165, 0),  # orange
+        "nose": (127, 255, 212),  # aqua green
+        "mouth": (255, 0, 255),  # fuchsia
+        "head": (0, 50, 200),  # blue
+        "left_shoulder": (0, 0, 255),  # red
         "right_shoulder": (0, 0, 255),
         "left_hip": (0, 0, 255),
         "right_hip": (0, 0, 255),
@@ -166,11 +170,11 @@ def process_video(input_video_path: str,
     }
 
     # Keypoints required for counting
-    required_kpts = {  "eye", "head", "nose", "mouth",
-                        "eye1", "eye2","left_shoulder", "right_shoulder",
-                        "left_hip", "right_hip",
-                        "left_knee", "right_knee",
-                        "left_ankle", "right_ankle"}
+    required_kpts = {"eye", "head", "nose", "mouth",
+                     "eye1", "eye2", "left_shoulder", "right_shoulder",
+                     "left_hip", "right_hip",
+                     "left_knee", "right_knee",
+                     "left_ankle", "right_ankle"}
     history = deque(maxlen=25)
     level = 0  # per i filtri
     boxes_per_frame = []
@@ -191,15 +195,15 @@ def process_video(input_video_path: str,
         results1 = builder.model_fd(frame, conf=0.3, verbose=False)[0]
         results2 = builder.model_pe(frame, conf=0.3, verbose=False)[0]
 
-        #Extract keypoints from face detection and pose estimation
+        # Extract keypoints from face detection and pose estimation
         kpt_fe = builder.features_extractor(results1.boxes)
         kpt_pe = builder.features_extractor_keypoints(results2)
         kpt = {**kpt_fe, **kpt_pe}
 
         expected_kpts = [
-            "eye1", "eye2", "nose", "mouth", "head","left_shoulder", "right_shoulder",
-            "left_elbow", "right_elbow","left_wrist", "right_wrist","left_hip", "right_hip",
-            "left_knee", "right_knee","left_ankle", "right_ankle"]
+            "eye1", "eye2", "nose", "mouth", "head", "left_shoulder", "right_shoulder",
+            "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip",
+            "left_knee", "right_knee", "left_ankle", "right_ankle"]
 
         for k in expected_kpts:
             if k not in kpt:
@@ -212,8 +216,8 @@ def process_video(input_video_path: str,
         boxes_per_frame.append(count_valid_boxes)
 
         required_kpts = ["left_shoulder", "right_shoulder",
-            "left_elbow", "right_elbow","left_wrist", "right_wrist","left_hip", "right_hip",
-            "left_knee", "right_knee","left_ankle", "right_ankle","left_ear", "right_ear"]
+                         "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip",
+                         "left_knee", "right_knee", "left_ankle", "right_ankle", "left_ear", "right_ear"]
 
         num_valid_keypoints = sum(1 for k in required_kpts if kpt[k] != (-1, -1))
         keypoints_per_frame.append(num_valid_keypoints)
@@ -231,12 +235,14 @@ def process_video(input_video_path: str,
             weight_critical = 4
             secondary = {"left_hip", "right_hip"}
             weight_secondary = 0.5
-            others = {"left_hip", "right_hip","left_knee", "right_knee", "left_ankle", "right_ankle"}
+            others = {"left_hip", "right_hip", "left_knee", "right_knee", "left_ankle", "right_ankle"}
             weight_others = 0.3
 
             keypoint_score = (weight_critical * count_valid(critical) +
-                             weight_secondary * count_valid(secondary) +
-                            weight_others * count_valid(others)) / (weight_critical * len(critical) + weight_secondary * len(secondary) + weight_others * len(others))
+                              weight_secondary * count_valid(secondary) +
+                              weight_others * count_valid(others)) / (
+                                         weight_critical * len(critical) + weight_secondary * len(
+                                     secondary) + weight_others * len(others))
 
             # Final frame score: weighted combination
             frame_score = 0.75 * keypoint_score + 0.25 * visual_score
@@ -247,12 +253,12 @@ def process_video(input_video_path: str,
 
             # --- Hysteresis thresholds ---
             if success_rate > upper_thresh and level > 0:
-                    if verbose:
-                        print(f"Buoni box frequenti ({success_rate*100:.1f}%) → disattivo filtro")
-                    level = max(0, level - 1)
+                if verbose:
+                    print(f"Buoni box frequenti ({success_rate * 100:.1f}%) → disattivo filtro")
+                level = max(0, level - 1)
             elif success_rate < lower_thresh and level < 3:
                 if verbose:
-                    print(f"Success rate basso ({success_rate*100:.1f}%) → aumento filtro a livello {level}")
+                    print(f"Success rate basso ({success_rate * 100:.1f}%) → aumento filtro a livello {level}")
                 level = min(3, level + 1)
 
         # --- Draw bounding boxes and keypoints ---
@@ -277,7 +283,8 @@ def process_video(input_video_path: str,
         ).reshape(1, -1)
 
         pred = clf.predict(train)[0]
-        prob = clf.predict_proba(train)[0][np.where(clf.classes_ == pred)[0][0]] if hasattr(clf,"predict_proba") else 1.0
+        prob = clf.predict_proba(train)[0][np.where(clf.classes_ == pred)[0][0]] if hasattr(clf,
+                                                                                            "predict_proba") else 1.0
 
         label_text = f"{'Safe' if pred == 0 else 'In Danger'} ({prob * 100:.1f}%)"
         color = (0, 255, 0) if (("Safe" in label_text) or ("Safe" in label_text)) else (0, 0, 255)
@@ -296,6 +303,7 @@ def process_video(input_video_path: str,
 
     return boxes_per_frame + keypoints_per_frame
 
+
 def process_video_mlp(input_video_path: str,
                       builder,
                       clf,
@@ -310,25 +318,43 @@ def process_video_mlp(input_video_path: str,
                       lower_thresh=0.35,
                       device='cpu',
                       colab: bool = False):
-
     import cv2
     import numpy as np
     from collections import deque
     import torch
     import os
 
+    # --- Setup delle importazioni condizionali ---
     if colab:
         from tqdm.notebook import tqdm
         from google.colab.patches import cv2_imshow
+        from IPython import display
+        # Import PIL.Image per la conversione in PNG richiesta da image_display.update()
+        import PIL.Image as PIL_Image
     else:
         from tqdm import tqdm
 
     print("")
     print("Video processing".ljust(90, '-'))
 
+    # --- Inizializzazione della variabile image_display e spostamento dei modelli ---
+    image_display = None
+
+    # Sposta i modelli sul dispositivo specificato
+    try:
+        builder.model_fd.to(device)
+        builder.model_pe.to(device)
+        model_mlp.to(device).eval()
+    except Exception as e:
+        if verbose:
+            print(f"Attenzione: Impossibile spostare i modelli su {device}. Errore: {e}")
+
+    # --- Funzione helper ---
     def count_valid(kpts_set):
+        # Nota: kpt deve essere accessibile nello scope
         return sum(1 for k in kpts_set if k in kpt and kpt[k] != (-1, -1))
 
+    # --- Inizializzazione Video Capture e Metadati ---
     cap = cv2.VideoCapture(input_video_path)
     if not cap.isOpened():
         raise ValueError(f"Errore nell'aprire il video: {input_video_path}")
@@ -340,10 +366,12 @@ def process_video_mlp(input_video_path: str,
 
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fps = min(cap.get(cv2.CAP_PROP_FPS), default_fps)
+    original_fps = cap.get(cv2.CAP_PROP_FPS)
+    fps = min(original_fps, default_fps)
 
     print(f"Video processing at {fps} FPS ")
 
+    # --- Inizializzazione Video Writer ---
     out = cv2.VideoWriter(
         output_video_path,
         cv2.VideoWriter_fourcc(*'mp4v'),
@@ -351,33 +379,36 @@ def process_video_mlp(input_video_path: str,
         (frame_width, frame_height)
     )
 
-    keypoint_colors = {
-        "eye": (255, 165, 0),
-        "nose": (127, 255, 212),
-        "mouth": (255, 0, 255),
-        "head": (0, 50, 200),
-        "left_shoulder": (0, 0, 255),
-        "right_shoulder": (0, 0, 255),
-        "left_hip": (0, 0, 255),
-        "right_hip": (0, 0, 255),
-        "left_knee": (0, 0, 255),
-        "right_knee": (0, 0, 255),
-        "left_ankle": (0, 0, 255),
-        "right_ankle": (0, 0, 255)
-    }
+    # --- Inizializzazione Logica di Visualizzazione e TQDM ---
+    # 1. Inizializzazione TQDM (apparirà per prima)
+    iterator = tqdm(total=total_frames, desc="🎥 Video processing", position=0, leave=True)
 
+    # 2. Creazione dello slot di output aggiornabile (image_display)
+    if colab:
+        # Crea un'area di output persistente SOTTO la barra TQDM
+        image_display = display.display(None, display_id=True)
+
+    # --- (Inizializzazione colori, history, level, ecc. omessa per brevità, sono invariati) ---
+    keypoint_colors = {
+        "eye": (255, 165, 0), "nose": (127, 255, 212), "mouth": (255, 0, 255),
+        "head": (0, 50, 200), "left_shoulder": (0, 0, 255), "right_shoulder": (0, 0, 255),
+        "left_hip": (0, 0, 255), "right_hip": (0, 0, 255), "left_knee": (0, 0, 255),
+        "right_knee": (0, 0, 255), "left_ankle": (0, 0, 255), "right_ankle": (0, 0, 255)
+    }
     history = deque(maxlen=25)
     level = 0
     boxes_per_frame = []
     keypoints_per_frame = []
 
-    iterator = tqdm(total=total_frames, desc="🎥 Video processing", position=0, leave=True)
+    # --- Loop Principale ---
     while True:
         ret, frame = cap.read()
         if not ret:
             break
 
+        # --- Logica di Elaborazione (Invariata) ---
         if use_filters and level > 0:
+            # Assumiamo che enhance_contrast_brightness sia definita altrove
             frame = enhance_contrast_brightness(frame, level)
 
         results1 = builder.model_fd(frame, conf=0.3, verbose=False)[0]
@@ -387,6 +418,7 @@ def process_video_mlp(input_video_path: str,
         kpt_pe = builder.features_extractor_keypoints(results2)
         kpt = {**kpt_fe, **kpt_pe}
 
+        # ... (Logica di riempimento kpt e calcolo metriche/filtri omessa per brevità) ...
         expected_kpts = [
             "eye1", "eye2", "nose", "mouth", "head", "left_shoulder", "right_shoulder",
             "left_elbow", "right_elbow", "left_wrist", "right_wrist", "left_hip", "right_hip",
@@ -396,6 +428,7 @@ def process_video_mlp(input_video_path: str,
             if k not in kpt:
                 kpt[k] = (-1, -1)
 
+        # ... (Calcolo boxes_per_frame, keypoints_per_frame, filtri adattivi) ...
         required_boxes = ["eye", "head", "nose", "mouth"]
         count_valid_boxes = sum(1 for k in required_boxes if k in kpt and kpt[k] != (-1, -1))
         boxes_per_frame.append(count_valid_boxes)
@@ -421,7 +454,8 @@ def process_video_mlp(input_video_path: str,
             keypoint_score = (weight_critical * count_valid(critical) +
                               weight_secondary * count_valid(secondary) +
                               weight_others * count_valid(others)) / (
-                              weight_critical * len(critical) + weight_secondary * len(secondary) + weight_others * len(others))
+                                     weight_critical * len(critical) + weight_secondary * len(
+                                 secondary) + weight_others * len(others))
             frame_score = 0.75 * keypoint_score + 0.25 * visual_score
             history.append(frame_score)
             success_rate = np.average(history, weights=np.linspace(0.1, 1.0, len(history)))
@@ -431,6 +465,7 @@ def process_video_mlp(input_video_path: str,
                 level = min(3, level + 1)
 
         if show_all_boxes:
+            # Assumiamo che draw_bounding_boxes sia definita altrove
             draw_bounding_boxes(frame, results1, builder, keypoint_colors, show_all_boxes, show_confidences)
 
         keypoints_order = [
@@ -441,25 +476,38 @@ def process_video_mlp(input_video_path: str,
         ]
         keypoints_list = [kpt.get(k, None) if kpt.get(k, (-1, -1)) != (-1, -1) else None for k in keypoints_order]
         if show_all_kpt:
+            # Assumiamo che draw_keypoints_on_frame sia definita altrove
             frame = draw_keypoints_on_frame(frame, keypoints_list, number=False)
 
-        train = builder.create_embedding_for_video(
+        # --- Predizione MLP (Ottimizzata) ---
+        train_data = builder.create_embedding_for_video(
             kpt, flags=True, positions=True, geometric_info=True,
             positions_normalized=True, k_positions_normalized=True,
             k_geometric_info=True, verbose=verbose
         ).reshape(1, -1)
 
-        model_mlp.eval()
-        train = torch.tensor(train, dtype=torch.float32).to(device)
-        train = model_mlp(train)
-        pred = clf.predict(train.detach().cpu().numpy())[0]
-        prob = clf.predict_proba(train.detach().cpu().numpy())[0][np.where(clf.classes_ == pred)[0][0]] if hasattr(clf, "predict_proba") else 1.0
+        # Nota: model_mlp è già in eval() se il blocco try/except è stato eseguito
+        train_torch = torch.tensor(train_data, dtype=torch.float32).to(device)
+        train_output = model_mlp(train_torch)
+
+        train_np = train_output.detach().cpu().numpy()
+        pred = clf.predict(train_np)[0]
+
+        prob = 1.0
+        if hasattr(clf, "predict_proba"):
+            probas = clf.predict_proba(train_np)[0]
+            prob = probas[np.where(clf.classes_ == pred)[0][0]]
 
         label_text = f"{'Safe' if pred == 0 else 'In Danger'} ({prob * 100:.1f}%)"
         color = (0, 255, 0) if pred == 0 else (0, 0, 255)
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+        # --- Visualizzazione Colab (CORREZIONE FINALE) ---
         if colab:
-            cv2_imshow(frame)
+            # Usa il metodo .update() sullo slot separato per non cancellare TQDM
+            is_success, buffer = cv2.imencode(".png", frame)
+            if is_success and image_display:
+                image_display.update(display.Image(data=buffer.tobytes()))
         else:
             cv2.imshow("Video Prediction", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -468,15 +516,21 @@ def process_video_mlp(input_video_path: str,
         out.write(frame)
         iterator.update(1)
 
+    # --- Cleanup ---
     cap.release()
     out.release()
     iterator.close()
 
-    if not colab:
+    if colab and image_display:
+        # Pulisce l'ultimo frame visualizzato nello slot
+        image_display.update(HTML(''))
+    elif not colab:
         cv2.destroyAllWindows()
+
     print("".ljust(90, '-'))
 
     return output_video_path if colab else boxes_per_frame + keypoints_per_frame
+
 
 # ===============================
 # Stats & Visualization Helpers
@@ -513,8 +567,8 @@ def plot_comparison(valid_boxes_per_frame_with_filter, valid_boxes_per_frame_wit
     x = np.arange(length)
     width = 0.4
     plt.figure(figsize=(12, 6))
-    plt.bar(x - width/2, data_with, width, label='With Filter', alpha=0.7)
-    plt.bar(x + width/2, data_without, width, label='Without Filter', alpha=0.7)
+    plt.bar(x - width / 2, data_with, width, label='With Filter', alpha=0.7)
+    plt.bar(x + width / 2, data_without, width, label='Without Filter', alpha=0.7)
     plt.xlabel('Frame number')
     plt.ylabel('Number of detected keypoints')
     plt.title('Bounding boxes per frame: With vs Without Filter')
