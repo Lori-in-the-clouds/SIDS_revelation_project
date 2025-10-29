@@ -310,15 +310,13 @@ def process_video_mlp(input_video_path: str,
                       upper_thresh=0.65,
                       lower_thresh=0.35,
                       device='cpu',
-                      colab: bool = False):  # <-- parametro colab esplicito
+                      colab: bool = False):
 
     import cv2
     import numpy as np
     from collections import deque
     import torch
     import os
-
-    # Se Colab, import cv2_imshow
     if colab:
         from google.colab.patches import cv2_imshow
 
@@ -460,9 +458,7 @@ def process_video_mlp(input_video_path: str,
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         # Visualizzazione
-        if colab:
-            cv2_imshow(frame)
-        else:
+        if not colab:
             cv2.imshow("Video Prediction", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -474,7 +470,10 @@ def process_video_mlp(input_video_path: str,
     if not colab:
         cv2.destroyAllWindows()
 
-    return boxes_per_frame + keypoints_per_frame
+    if colab:
+        return output_video_path
+    else:
+        return boxes_per_frame + keypoints_per_frame
 
 
 # ===============================
