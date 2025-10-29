@@ -152,7 +152,7 @@ The script generates a video with annotated bounding boxes and keypoints, saved 
 
 ### 🎬 Example Input Video
 To test the model, you can use this example input video:  
-▶️ [`video_prediction/video/baby_1.mp4`](sample_video.mp4)
+▶️ [`sample_video.mp4`](video_prediction/video/baby_1.mp4)
 
 This short clip simulates a sleeping infant transitioning between different positions. You can replace it with your own `.mp4` file for testing.
 
