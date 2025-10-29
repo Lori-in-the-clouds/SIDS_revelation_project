@@ -10,7 +10,7 @@
 - [🧠 Computer Vision Model Pipeline](#-computer-vision-model-pipeline)  
   - [🔍 YOLOv8 Face Detection](#-yolov8-face-detection-model)  
   - [🏃 YOLOv8 Pose Estimation](#-yolov8-pose-estimation-model)  
-  - [🛠️ Feature Engineering and Embedding](#-feature-engineering-and-embedding)
+  - [🛠️ Feature Engineering and Embedding](#feature-engineering-and-embedding)
   - [📊 XGBoost Classifier](#-xgboost-classifier)  
 - [🎥 Qualitative Results](#-qualitative-results)  
 - [🔧 Let's set up the project locally!](#-do-you-want-to-work-on-it-locally-lets-set-up-the-project)
