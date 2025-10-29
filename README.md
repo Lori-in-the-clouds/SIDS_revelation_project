@@ -13,9 +13,8 @@
   - [🛠️ Feature Engineering & Embedding](#-feature-engineering--embedding)  
   - [📊 XGBoost Classifier](#-xgboost-classifier)  
 - [🎥 Qualitative Results](#-qualitative-results)  
-- [📦 Installation](#-installation)  
-- [🚀 Running the Project](#-running-the-project)  
-- [🖼️ Output](#-output)
+- [🔧 Let's set up the project locally!](#-do-you-want-to-work-on-it-locally-lets-set-up-the-project)
+- [🚀 Running the Project in Google Colab](#-do-you-want-to-play-with-a-google-colab-demo-online-lets-do-it)
 </details>
 
 ## 🎯 Project goal
