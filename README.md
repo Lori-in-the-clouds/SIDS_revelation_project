@@ -10,7 +10,7 @@
 - [🧠 Computer Vision Model Pipeline](#-computer-vision-model-pipeline)  
   - [🔍 YOLOv8 Face Detection](#-yolov8-face-detection-model)  
   - [🏃 YOLOv8 Pose Estimation](#-yolov8-pose-estimation-model)  
-  - [🛠️ Feature Engineering & Embedding](#feature-engineering--embedding)
+  - [🛠️ Feature Engineering and Embedding](#-feature-engineering-and-embedding)
   - [📊 XGBoost Classifier](#-xgboost-classifier)  
 - [🎥 Qualitative Results](#-qualitative-results)  
 - [🔧 Let's set up the project locally!](#-do-you-want-to-work-on-it-locally-lets-set-up-the-project)
@@ -78,7 +78,7 @@ The second element of our pipeline is the YOLOv8 pose estimation model.
 It was fine-tuned with [this dataset](https://universe.roboflow.com/sids-project-3gvel/pose_estimation-merged-gdksv/dataset/1m) after careful data augmentation.
 
 
-### 🛠️ Feature Engineering & Embedding
+### 🛠️ Feature Engineering and Embedding
 From YOLO outputs, we extract handcrafted features (86 total):
 - **Face-related**: landmark presence, normalized positions, geometric relations (angles, aspect ratios, eye-to-mouth distances).
 - **Pose-related**: normalized keypoints, distances between joints, torsion, and angles.
