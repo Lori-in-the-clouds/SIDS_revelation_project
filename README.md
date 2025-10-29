@@ -152,5 +152,4 @@ The script generates a video with annotated bounding boxes and keypoints, saved 
 
 
 ## 🚀 Do you want to play with a Google Colab demo online? Let's do it!
-Open ... with Google Colab and upload your video...that easy.
-[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github.com/Lori-in-the-clouds/SIDS_revelation_project/colab_demo.ipynb)
+Open ... with Google Colab and upload your video...just click here: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Lori-in-the-clouds/SIDS_revelation_project/blob/main/colab_demo.ipynb)
