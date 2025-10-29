@@ -4,13 +4,13 @@
 <summary><span style="font-size: 2em; font-weight: 600;">📖 Table of Contents</span></summary>
 
 - [🎯 Project Goal](#-project-goal)  
-- [❓ Problem Definition](#-problem-definition)  
+- [❓ Problem Definition](#problem-definition)  
 - [💡 Proposed Solution](#-proposed-solution)  
 - [🔄 System Workflow](#-system-workflow)  
 - [🧠 Computer Vision Model Pipeline](#-computer-vision-model-pipeline)  
   - [🔍 YOLOv8 Face Detection](#-yolov8-face-detection-model)  
   - [🏃 YOLOv8 Pose Estimation](#-yolov8-pose-estimation-model)  
-  - [🛠️ Feature Engineering & Embedding](#-feature-engineering--embedding)  
+  - [🛠️ Feature Engineering & Embedding](#feature-engineering-and-embedding)  
   - [📊 XGBoost Classifier](#-xgboost-classifier)  
 - [🎥 Qualitative Results](#-qualitative-results)  
 - [🔧 Let's set up the project locally!](#-do-you-want-to-work-on-it-locally-lets-set-up-the-project)
