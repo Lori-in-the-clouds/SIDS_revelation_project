@@ -4,6 +4,7 @@ import numpy as np
 from collections import deque
 import matplotlib.pyplot as plt
 import torch
+from IPython.display import HTML
 
 
 def draw_keypoints_on_frame(img, keypoints_list, number: bool = False, thickness_line=2, thickness_point=3):
