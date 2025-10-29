@@ -507,7 +507,7 @@ def process_video_mlp(input_video_path: str,
             # Usa il metodo .update() sullo slot separato per non cancellare TQDM
             is_success, buffer = cv2.imencode(".png", frame)
             if is_success and image_display:
-                image_display.update(display.Image(data=buffer.tobytes()))
+                image_display.update(display.Image(data=buffer.tobytes(), width=700))
         else:
             cv2.imshow("Video Prediction", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
