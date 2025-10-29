@@ -150,6 +150,11 @@ python main.py --input data/sample_video.mp4
 The script generates a video with annotated bounding boxes and keypoints, saved in the same location where the input file is with the name
 `namefile_pred_with_filters.mp4`, where namefile corresponds to the input filename.
 
+### 🎬 Example Input Video
+To test the model, you can use this example input video:  
+▶️ [`video_prediction/video/baby_1.mp4`](sample_video.mp4)
+
+This short clip simulates a sleeping infant transitioning between different positions. You can replace it with your own `.mp4` file for testing.
 
 ## 🚀 Do you want to play with a Google Colab demo online? Let's do it!
 Open ... with Google Colab and upload your video...just click here: [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Lori-in-the-clouds/SIDS_revelation_project/blob/main/colab_demo.ipynb)
