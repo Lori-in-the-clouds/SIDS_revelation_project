@@ -458,8 +458,9 @@ def process_video_mlp(input_video_path: str,
         label_text = f"{'Safe' if pred == 0 else 'In Danger'} ({prob * 100:.1f}%)"
         color = (0, 255, 0) if pred == 0 else (0, 0, 255)
         cv2.putText(frame, label_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-        if not colab:
+        if colab:
+            cv2_imshow(frame)
+        else:
             cv2.imshow("Video Prediction", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
